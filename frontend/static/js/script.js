@@ -57,3 +57,9 @@ function closeNotification()
   notification.remove();
 }
 
+// index.html
+function closeFirstLogin() 
+{
+  document.getElementById('profileModal').remove();
+}
+
