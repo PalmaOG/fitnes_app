@@ -1,0 +1,31 @@
+/*index.html*/
+body {
+    background: #f4f7fc;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+.glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.progress-ring {
+    transition: stroke-dashoffset 0.5s;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+.animate-pulse-slow {
+    animation: pulse 3s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+/*reg_log.html*/
+.fit-card {
+    backdrop-filter: blur(2px);
+    transition: all 0.2s ease;
+}
+.fit-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
