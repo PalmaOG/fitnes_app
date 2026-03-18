@@ -50,6 +50,43 @@
             
             <!-- Левая колонка (прогресс, активность) -->
             <div class="lg:col-span-2 space-y-6">
+               
+                                <!-- Активные тренировки / план -->
+                <div class="glass-card rounded-3xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
+                        <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <!-- тренировка 1 -->
+                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                            <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-slate-800">Кардио + интервалы</h3>
+                                <p class="text-xs text-slate-500">10:30 • 35 мин • 280 ккал</p>
+                            </div>
+                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                        </div>
+                        <!-- тренировка 2 -->
+                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                            <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-md">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-slate-800">Силовая: верх тела</h3>
+                                <p class="text-xs text-slate-500">16:00 • 45 мин • 320 ккал</p>
+                            </div>
+                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Карточка с прогрессом тренировки (кольцо) -->
                 <div class="glass-card rounded-3xl p-6 shadow-xl">
@@ -95,42 +132,6 @@
                                 <span class="text-sm text-slate-500">Вода</span>
                                 <p class="text-2xl font-bold text-slate-800">4.2 <span class="text-sm font-normal text-slate-500">л</span></p>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Активные тренировки / план -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
-                        <a href="#" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
-                    </div>
-                    <div class="space-y-4">
-                        <!-- тренировка 1 -->
-                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
-                            <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-slate-800">Кардио + интервалы</h3>
-                                <p class="text-xs text-slate-500">10:30 • 35 мин • 280 ккал</p>
-                            </div>
-                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
-                        </div>
-                        <!-- тренировка 2 -->
-                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
-                            <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-md">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                                </svg>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-slate-800">Силовая: верх тела</h3>
-                                <p class="text-xs text-slate-500">16:00 • 45 мин • 320 ккал</p>
-                            </div>
-                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
                         </div>
                     </div>
                 </div>

@@ -68,6 +68,11 @@ def auth():
 def main():
     return render_template('index.html', username=session.get('username'), first_login = session.get('first_login'))
 
+@app.route('/programs')
+@login_required
+def workouts():
+    return render_template('programs.html', username=session.get('username'))
+
 #Маршруты сервера
 @app.route('/api/login', methods=['POST'])
 def login():
