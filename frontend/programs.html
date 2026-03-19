@@ -53,6 +53,12 @@
             transform: scale(0.7);
             transition: all 0.3s ease;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE */
+        }
+        
+        .modal-content::-webkit-scrollbar {
+            display: none; /* Chrome/Safari/Edge */
         }
         
         /* Адаптация для мобильных устройств */
@@ -170,8 +176,9 @@
         <div class="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
             <!-- Поиск -->
             <div class="relative w-full md:w-96">
-                <input type="text" placeholder="Поиск тренировок..." 
-                       class="w-full px-4 py-3 pl-12 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                <input type="text" id="searchInput" placeholder="Поиск тренировок..." 
+                       class="w-full px-4 py-3 pl-12 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                       onkeyup="filterExercises()">
                 <svg class="absolute left-4 top-3.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
@@ -179,46 +186,70 @@
             
             <!-- Фильтры -->
             <div class="flex gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                <select class="px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                    <option>Все категории</option>
-                    <option>Кардио</option>
-                    <option>Силовые</option>
-                    <option>Растяжка</option>
-                    <option>Йога</option>
+                <select id="categoryFilter" onchange="filterExercises()" class="px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    <option value="all">Все категории</option>
+                    <option value="cardio">Кардио</option>
+                    <option value="strength">Силовые</option>
+                    <option value="stretching">Растяжка</option>
+                    <option value="yoga">Йога</option>
                 </select>
-                <select class="px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                    <option>Все уровни</option>
-                    <option>Начинающий</option>
-                    <option>Средний</option>
-                    <option>Продвинутый</option>
+                <select id="difficultyFilter" onchange="filterExercises()" class="px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    <option value="all">Все уровни</option>
+                    <option value="beginner">Начинающий</option>
+                    <option value="intermediate">Средний</option>
+                    <option value="advanced">Продвинутый</option>
                 </select>
             </div>
         </div>
 
         <!-- Сетка тренировок -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="exercisesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            <!-- Кардио тренировки -->
-            <div class="glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative">
+            <!-- Динамические карточки из базы данных -->
+            {% for exercise in exercises %}
+            <div class="exercise-card glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative"
+                 data-category="{{ exercise.category }}"
+                 data-difficulty="{{ exercise.difficulty }}"
+                 data-title="{{ exercise.title|lower }}"
+                 data-id="{{ exercise.id }}">
+                
                 <!-- Фоновое изображение -->
-                <div class="h-48 bg-cover bg-center relative" style="background-image: url('static/images/cardio.jpg');">
+                <div class="h-48 bg-cover bg-center relative" style="background-image: url('{{ exercise.image_url }}');">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    <span class="absolute top-4 right-4 px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium shadow-lg z-10">Кардио</span>
+                    <span class="absolute top-4 right-4 px-3 py-1  {% if exercise.category == 'cardio' %}bg-orange-100 text-orange-600
+                        {% elif exercise.category == 'strength' %}bg-emerald-100 text-emerald-600
+                        {% elif exercise.category == 'yoga' %}bg-purple-100 text-purple-600
+                        {% elif exercise.category == 'stretching' %}bg-blue-100 text-blue-600
+                        {% else %}{{ exercise.category }}
+                        {% endif %} rounded-full text-xs font-medium shadow-lg z-10">
+                        {% if exercise.category == 'cardio' %}Кардио
+                        {% elif exercise.category == 'strength' %}Силовая
+                        {% elif exercise.category == 'yoga' %}Йога
+                        {% elif exercise.category == 'stretching' %}Растяжка
+                        {% else %}{{ exercise.category }}
+                        {% endif %}
+                    </span>
                 </div>
+                
                 <!-- Контент -->
                 <div class="p-6 bg-white/90 backdrop-blur-sm">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">Кардио + интервалы</h3>
-                    <p class="text-slate-600 text-sm mb-4">Интенсивная интервальная тренировка для сжигания жира</p>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">{{ exercise.title }}</h3>
+                    <p class="text-slate-600 text-sm mb-4">{{ exercise.description }}</p>
                     
                     <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                        <span class="flex items-center gap-1">⏱️ 35 мин</span>
-                        <span class="flex items-center gap-1">🔥 280 ккал</span>
-                        <span class="flex items-center gap-1">📊 Средний</span>
+                        <span class="flex items-center gap-1">⏱️ {{ exercise.duration_minutes }} мин</span>
+                        <span class="flex items-center gap-1">🔥 {{ exercise.calories }} ккал</span>
+                        <span class="flex items-center gap-1">📊 
+                            {% if exercise.difficulty == 'beginner' %}Начинающий
+                            {% elif exercise.difficulty == 'intermediate' %}Средний
+                            {% elif exercise.difficulty == 'advanced' %}Продвинутый
+                            {% endif %}
+                        </span>
                     </div>
                     
                     <div class="flex items-center gap-2">
-                        <button onclick="openWorkoutModal('cardio')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
-                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition">
+                        <button onclick="openExerciseModal('{{ exercise.id }}')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
+                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition favorite-btn" data-id="{{ exercise.id }}">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                             </svg>
@@ -226,60 +257,12 @@
                     </div>
                 </div>
             </div>
+            {% endfor %}
+        </div>
 
-            <!-- Силовая тренировка -->
-            <div class="glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative">
-                <div class="h-48 bg-cover bg-center relative" style="background-image: url('static/images/silovaya.jpg');">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    <span class="absolute top-4 right-4 px-3 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium shadow-lg z-10">Силовая</span>
-                </div>
-                <div class="p-6 bg-white/90 backdrop-blur-sm">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">Силовая: верх тела</h3>
-                    <p class="text-slate-600 text-sm mb-4">Проработка мышц груди, спины, плеч и рук</p>
-                    
-                    <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                        <span class="flex items-center gap-1">⏱️ 45 мин</span>
-                        <span class="flex items-center gap-1">🔥 320 ккал</span>
-                        <span class="flex items-center gap-1">📊 Средний</span>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <button onclick="openWorkoutModal('strength')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
-                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Йога тренировка (добавил для примера) -->
-            <div class="glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative">
-                <div class="h-48 bg-cover bg-center relative" style="background-image: url('static/images/yoga.jpg');">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    <span class="absolute top-4 right-4 px-3 py-1 bg-purple-100 text-purple-600 rounded-full text-xs font-medium shadow-lg z-10">Йога</span>
-                </div>
-                <div class="p-6 bg-white/90 backdrop-blur-sm">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">Йога для начинающих</h3>
-                    <p class="text-slate-600 text-sm mb-4">Расслабляющая практика для улучшения гибкости</p>
-                    
-                    <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                        <span class="flex items-center gap-1">⏱️ 30 мин</span>
-                        <span class="flex items-center gap-1">🔥 150 ккал</span>
-                        <span class="flex items-center gap-1">📊 Начинающий</span>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <button onclick="openWorkoutModal('yoga')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
-                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <!-- Сообщение если нет результатов -->
+        <div id="noResults" class="hidden text-center py-12">
+            <p class="text-slate-500 text-lg">По вашему запросу ничего не найдено</p>
         </div>
 
         <!-- Пагинация -->
@@ -292,233 +275,8 @@
         </div>
     </div>
 
-    <!-- Модальное окно для кардио тренировки -->
-    <div id="cardioModal" class="modal-overlay">
-        <div class="modal-content">
-            <!-- Изображение в шапке модального окна -->
-            <div class="h-56 bg-cover bg-center relative rounded-t-2xl sm:rounded-t-2xl" style="background-image: url('static/images/cardio.jpg');">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-t-2xl sm:rounded-t-2xl"></div>
-                <button onclick="closeModal('cardioModal')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-                <div class="absolute bottom-4 left-4 sm:left-6 text-white">
-                    <span class="px-3 py-1 bg-orange-500 text-white rounded-full text-xs font-medium">Кардио</span>
-                    <h2 class="text-xl sm:text-2xl font-bold mt-2">Кардио + интервалы</h2>
-                </div>
-            </div>
-            
-            <!-- Контент модального окна -->
-            <div class="p-4 sm:p-6">
-                <!-- Краткая информация -->
-                <div class="flex flex-wrap items-center gap-4 mb-6">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">⏱️</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Длительность</p>
-                            <p class="font-semibold">35 мин</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">🔥</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Калории</p>
-                            <p class="font-semibold">280 ккал</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">📊</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Уровень</p>
-                            <p class="font-semibold">Средний</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Описание -->
-                <div class="mb-6">
-                    <h3 class="font-semibold text-slate-800 mb-2">Описание тренировки</h3>
-                    <p class="text-slate-600 text-sm">Интенсивная интервальная тренировка для сжигания жира и улучшения выносливости. Чередование высокоинтенсивных упражнений с периодами отдыха для максимального жиросжигания.</p>
-                </div>
-                
-                <!-- Список упражнений -->
-                <div class="mb-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Программа тренировки</h3>
-                    <div class="space-y-2">
-                        <div class="exercise-item">
-                            <div class="exercise-number">1</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Бёрпи</p>
-                                <p class="text-xs text-slate-500">30 сек работа / 15 сек отдых</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">2</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Скалолаз</p>
-                                <p class="text-xs text-slate-500">30 сек работа / 15 сек отдых</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">3</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Джампинг Джек</p>
-                                <p class="text-xs text-slate-500">30 сек работа / 15 сек отдых</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">4</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Высокие колени</p>
-                                <p class="text-xs text-slate-500">30 сек работа / 15 сек отдых</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">5</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Приседания с выпрыгиванием</p>
-                                <p class="text-xs text-slate-500">30 сек работа / 15 сек отдых</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Кнопки действий -->
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <button class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
-                        Начать тренировку
-                    </button>
-                    <button onclick="closeModal('cardioModal')" class="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition">
-                        Закрыть
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно для силовой тренировки -->
-    <div id="strengthModal" class="modal-overlay">
-        <div class="modal-content">
-            <!-- Изображение в шапке модального окна -->
-            <div class="h-56 bg-cover bg-center relative rounded-t-2xl sm:rounded-t-2xl" style="background-image: url('static/images/silovaya.jpg');">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-t-2xl sm:rounded-t-2xl"></div>
-                <button onclick="closeModal('strengthModal')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-                <div class="absolute bottom-4 left-4 sm:left-6 text-white">
-                    <span class="px-3 py-1 bg-emerald-500 text-white rounded-full text-xs font-medium">Силовая</span>
-                    <h2 class="text-xl sm:text-2xl font-bold mt-2">Силовая: верх тела</h2>
-                </div>
-            </div>
-            
-            <!-- Контент модального окна -->
-            <div class="p-4 sm:p-6">
-                <!-- Краткая информация -->
-                <div class="flex flex-wrap items-center gap-4 mb-6">
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">⏱️</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Длительность</p>
-                            <p class="font-semibold">45 мин</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">🔥</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Калории</p>
-                            <p class="font-semibold">320 ккал</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl">📊</span>
-                        <div>
-                            <p class="text-xs text-slate-500">Уровень</p>
-                            <p class="font-semibold">Средний</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Описание -->
-                <div class="mb-6">
-                    <h3 class="font-semibold text-slate-800 mb-2">Описание тренировки</h3>
-                    <p class="text-slate-600 text-sm">Проработка мышц груди, спины, плеч и рук с собственным весом и гантелями. Тренировка направлена на укрепление мышечного корсета верхней части тела.</p>
-                </div>
-                
-                <!-- Список упражнений -->
-                <div class="mb-6">
-                    <h3 class="font-semibold text-slate-800 mb-4">Программа тренировки</h3>
-                    <div class="space-y-2">
-                        <div class="exercise-item">
-                            <div class="exercise-number">1</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Отжимания</p>
-                                <p class="text-xs text-slate-500">12-15 повторений</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">4 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">2</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Тяга гантелей в наклоне</p>
-                                <p class="text-xs text-slate-500">10-12 повторений</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">4 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">3</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Жим гантелей сидя</p>
-                                <p class="text-xs text-slate-500">10-12 повторений</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">4</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Разведение гантелей в стороны</p>
-                                <p class="text-xs text-slate-500">12-15 повторений</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                        
-                        <div class="exercise-item">
-                            <div class="exercise-number">5</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-medium text-slate-800 truncate">Сгибание рук с гантелями</p>
-                                <p class="text-xs text-slate-500">10-12 повторений</p>
-                            </div>
-                            <span class="text-sm font-medium text-indigo-600 ml-2 flex-shrink-0">3 подхода</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Кнопки действий -->
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <button class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
-                        Начать тренировку
-                    </button>
-                    <button onclick="closeModal('strengthModal')" class="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition">
-                        Закрыть
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Динамические модальные окна будут создаваться через JavaScript -->
+    <div id="modalContainer"></div>
 
     <!-- Flash сообщения -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -538,43 +296,260 @@
     {% endwith %}
 
     <script>
-        // Функция открытия модального окна
-        function openWorkoutModal(type) {
-            const modal = document.getElementById(type + 'Modal');
-            if (modal) {
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden'; // Блокируем скролл страницы
-            }
+    // Передаем данные из Flask в JavaScript (ТОЛЬКО ОДИН РАЗ!)
+    const exercisesData = {{ exercises | tojson| safe }};
+    console.log('Exercises loaded:', exercisesData);
+    
+    // Функция открытия модального окна
+    function openExerciseModal(exerciseId) {
+        console.log('Opening modal for exercise:', exerciseId);
+        
+        // Преобразуем ID в число для сравнения
+        const exercise = exercisesData.find(e => e.id == exerciseId);
+        
+        if (!exercise) {
+            console.error('Exercise not found with id:', exerciseId);
+            return;
         }
         
-        // Функция закрытия модального окна
-        function closeModal(modalId) {
+        console.log('Found exercise:', exercise);
+        
+        // Создаем модальное окно
+        const modalId = `modal-${exerciseId}`;
+        const existingModal = document.getElementById(modalId);
+        
+        if (existingModal) {
+            existingModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            return;
+        }
+        
+        // Подготовка данных для отображения
+        const categoryDisplay = {
+            'cardio': 'Кардио',
+            'strength': 'Силовая',
+            'yoga': 'Йога',
+            'stretching': 'Растяжка'
+        };
+        
+        const difficultyDisplay = {
+            'beginner': 'Начинающий',
+            'intermediate': 'Средний',
+            'advanced': 'Продвинутый'
+        };
+        
+        // Цвета для категорий
+        const categoryColors = {
+            'cardio': 'bg-orange-500',
+            'strength': 'bg-emerald-500',
+            'yoga': 'bg-purple-500',
+            'stretching': 'bg-blue-500'
+        };
+        
+        // Создаем HTML для модального окна
+        const modalHTML = `
+            <div id="${modalId}" class="modal-overlay">
+                <div class="modal-content">
+                    <!-- Изображение в шапке -->
+                    <div class="h-56 bg-cover bg-center relative rounded-t-2xl sm:rounded-t-2xl" style="background-image: url('${exercise.image_url || '/static/images/default.jpg'}');">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent rounded-t-2xl sm:rounded-t-2xl"></div>
+                        <button onclick="closeModal('${modalId}')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute bottom-4 left-4 sm:left-6 text-white">
+                            <span class="px-3 py-1 ${categoryColors[exercise.category] || 'bg-gray-500'} rounded-full text-xs font-medium">
+                                ${categoryDisplay[exercise.category] || exercise.category}
+                            </span>
+                            <h2 class="text-xl sm:text-2xl font-bold mt-2">${exercise.title}</h2>
+                        </div>
+                    </div>
+                    
+                    <!-- Контент модального окна -->
+                    <div class="p-4 sm:p-6">
+                        <!-- Краткая информация -->
+                        <div class="flex flex-wrap items-center gap-4 mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">⏱️</span>
+                                <div>
+                                    <p class="text-xs text-slate-500">Длительность</p>
+                                    <p class="font-semibold">${exercise.duration_minutes} мин</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">🔥</span>
+                                <div>
+                                    <p class="text-xs text-slate-500">Калории</p>
+                                    <p class="font-semibold">${exercise.calories} ккал</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">📊</span>
+                                <div>
+                                    <p class="text-xs text-slate-500">Уровень</p>
+                                    <p class="font-semibold">${difficultyDisplay[exercise.difficulty] || exercise.difficulty}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Видео если есть -->
+                        ${exercise.video_url ? `
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-slate-800 mb-2">Видео упражнения</h3>
+                            <video autoplay loop muted playsinline class="w-full rounded-xl">
+                                <source src="${exercise.video_url}" type="video/mp4">
+                                Ваш браузер не поддерживает видео.
+                            </video>
+                        </div>
+                        ` : ''}                        
+
+                        <!-- Описание -->
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-slate-800 mb-2">Описание тренировки</h3>
+                            <p class="text-slate-600 text-sm">${exercise.detailed_description || exercise.description || 'Описание отсутствует'}</p>
+                        </div>
+                        
+                        <!-- Кнопки действий -->
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button onclick="startWorkout(${exercise.id})" class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
+                                Начать тренировку
+                            </button>
+                            <button onclick="closeModal('${modalId}')" class="px-6 py-4 bg-white border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition">
+                                Закрыть
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Добавляем модальное окно на страницу
+        document.getElementById('modalContainer').insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Показываем модальное окно
+        setTimeout(() => {
             const modal = document.getElementById(modalId);
             if (modal) {
-                modal.classList.remove('active');
-                document.body.style.overflow = 'auto'; // Возвращаем скролл
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }, 10);
+    }
+    
+    // Функция для начала тренировки
+    function startWorkout(exerciseId) {
+        console.log('Starting workout:', exerciseId);
+        alert('Тренировка началась!');
+        // Здесь можно добавить перенаправление на страницу тренировки
+        // window.location.href = `/workout/${exerciseId}`;
+    }
+    
+    // Функция закрытия модального окна
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Удаляем модальное окно через 300ms после анимации
+            setTimeout(() => {
+                if (modal && modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            }, 300);
+        }
+    }
+    
+    // Функция фильтрации упражнений
+    function filterExercises() {
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        const difficulty = document.getElementById('difficultyFilter').value;
+        
+        const cards = document.querySelectorAll('.exercise-card');
+        let visibleCount = 0;
+        
+        cards.forEach(card => {
+            const cardCategory = card.dataset.category;
+            const cardDifficulty = card.dataset.difficulty;
+            const cardTitle = card.dataset.title;
+            
+            const matchesSearch = cardTitle.includes(searchText);
+            const matchesCategory = category === 'all' || cardCategory === category;
+            const matchesDifficulty = difficulty === 'all' || cardDifficulty === difficulty;
+            
+            if (matchesSearch && matchesCategory && matchesDifficulty) {
+                card.style.display = 'block';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Показываем сообщение если нет результатов
+        const noResults = document.getElementById('noResults');
+        if (noResults) {
+            if (visibleCount === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
             }
         }
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, exercises:', exercisesData);
         
-        // Закрытие по клику на фон
-        document.querySelectorAll('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.classList.remove('active');
-                    document.body.style.overflow = 'auto';
+        // Обработчики для кнопок избранного
+        document.querySelectorAll('.favorite-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const svg = this.querySelector('svg');
+                if (svg.getAttribute('fill') === 'currentColor') {
+                    svg.setAttribute('fill', 'none');
+                    svg.classList.remove('text-red-500');
+                } else {
+                    svg.setAttribute('fill', 'currentColor');
+                    svg.classList.add('text-red-500');
                 }
             });
         });
-        
-        // Закрытие по клавише Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal-overlay.active').forEach(modal => {
-                    modal.classList.remove('active');
-                    document.body.style.overflow = 'auto';
-                });
+    });
+    
+    // Закрытие по клику на фон
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal-overlay')) {
+            const modal = e.target;
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Удаляем модальное окно
+            setTimeout(() => {
+                if (modal && modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            }, 300);
+        }
+    });
+    
+    // Закрытие по клавише Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                activeModal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+                
+                setTimeout(() => {
+                    if (activeModal && activeModal.parentNode) {
+                        activeModal.parentNode.removeChild(activeModal);
+                    }
+                }, 300);
             }
-        });
-    </script>
+        }
+    });
+</script>
 </body>
 </html>

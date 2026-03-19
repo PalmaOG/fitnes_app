@@ -35,8 +35,31 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-
-
+#Модель упражнений
+class Exercise(db.Model):
+    __tablename__ = 'exercises'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)  # Название упражнения
+    description = db.Column(db.Text, nullable=True)    # Описание
+    category = db.Column(db.String(50), nullable=False)  # cardio, strength, yoga, stretching
+    difficulty = db.Column(db.String(20), default='beginner')  # beginner, intermediate, advanced
+    
+    # Длительность и калории
+    duration_minutes = db.Column(db.Integer, nullable=False)  # Длительность в минутах
+    calories = db.Column(db.Integer, nullable=False)  # Сжигаемые калории
+    
+    # Изображения и видео
+    image_url = db.Column(db.String(500), nullable=False)  # Путь к изображению
+    video_url = db.Column(db.String(500), nullable=True)   # Путь к видео
+    
+    # Детальная информация для модального окна
+    detailed_description = db.Column(db.Text, nullable=True)  # Подробное описание
+    
+    
+    def __repr__(self):
+        return f'<Exercise {self.title}>'
+    
 
 # Декоратор для проверки авторизации
 def login_required(f):
@@ -71,7 +94,25 @@ def main():
 @app.route('/programs')
 @login_required
 def workouts():
-    return render_template('programs.html', username=session.get('username'))
+    exercises = Exercise.query.all()
+    # Преобразуем объекты Exercise в словари для JSON сериализации
+    exercises_list = []
+    for exercise in exercises:
+        exercise_dict = {
+            'id': exercise.id,
+            'title': exercise.title,
+            'description': exercise.description,
+            'category': exercise.category,
+            'difficulty': exercise.difficulty,
+            'duration_minutes': exercise.duration_minutes,
+            'calories': exercise.calories,
+            'image_url': exercise.image_url,
+            'video_url': exercise.video_url,
+            'detailed_description': exercise.detailed_description
+        }
+        exercises_list.append(exercise_dict)
+
+    return render_template('programs.html', username=session.get('username'), exercises=exercises_list)
 
 #Маршруты сервера
 @app.route('/api/login', methods=['POST'])
