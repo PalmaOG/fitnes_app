@@ -121,6 +121,131 @@
             flex-shrink: 0;
         }
         
+        /* Увеличенные стили для пагинации */
+.pagination-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background-color: white;
+    color: #334155;
+    font-weight: 600;
+    font-size: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: none;
+    cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #4f46e5;
+    color: white;
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-btn:disabled:hover {
+    background-color: white;
+    color: #334155;
+    transform: scale(1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-btn.active {
+    background: linear-gradient(to right, #4f46e5, #10b981);
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    transform: scale(1.1);
+    ring: 2px solid #a5b4fc;
+    ring-offset: 2px;
+}
+
+.pagination-btn.prev-next {
+    width: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.pagination-dots {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 18px;
+    padding-left: 8px;
+    padding-right: 8px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 640px) {
+    .pagination-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
+    }
+    
+    .pagination-btn.prev-next {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
+
+/* Дополнительные стили для иконок */
+.pagination-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.pagination-btn.prev-next span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .pagination-btn.prev-next span span {
+        display: none;
+    }
+}
+
+/* Контейнер для пагинации */
+#pagination {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Информация о пагинации */
+#paginationInfo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    color: #475569;
+}
+
+#paginationInfo .text-indigo-600 {
+    color: #4f46e5;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+#paginationInfo .text-emerald-600 {
+    color: #059669;
+    font-weight: 700;
+    font-size: 18px;
+}
+  
+        
         /* Адаптация для мобильных */
         @media (max-width: 640px) {
             .exercise-item {
@@ -204,60 +329,7 @@
 
         <!-- Сетка тренировок -->
         <div id="exercisesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            <!-- Динамические карточки из базы данных -->
-            {% for exercise in exercises %}
-            <div class="exercise-card glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative"
-                 data-category="{{ exercise.category }}"
-                 data-difficulty="{{ exercise.difficulty }}"
-                 data-title="{{ exercise.title|lower }}"
-                 data-id="{{ exercise.id }}">
-                
-                <!-- Фоновое изображение -->
-                <div class="h-48 bg-cover bg-center relative" style="background-image: url('{{ exercise.image_url }}');">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    <span class="absolute top-4 right-4 px-3 py-1  {% if exercise.category == 'cardio' %}bg-orange-100 text-orange-600
-                        {% elif exercise.category == 'strength' %}bg-emerald-100 text-emerald-600
-                        {% elif exercise.category == 'yoga' %}bg-purple-100 text-purple-600
-                        {% elif exercise.category == 'stretching' %}bg-blue-100 text-blue-600
-                        {% else %}{{ exercise.category }}
-                        {% endif %} rounded-full text-xs font-medium shadow-lg z-10">
-                        {% if exercise.category == 'cardio' %}Кардио
-                        {% elif exercise.category == 'strength' %}Силовая
-                        {% elif exercise.category == 'yoga' %}Йога
-                        {% elif exercise.category == 'stretching' %}Растяжка
-                        {% else %}{{ exercise.category }}
-                        {% endif %}
-                    </span>
-                </div>
-                
-                <!-- Контент -->
-                <div class="p-6 bg-white/90 backdrop-blur-sm">
-                    <h3 class="text-xl font-bold text-slate-800 mb-2">{{ exercise.title }}</h3>
-                    <p class="text-slate-600 text-sm mb-4">{{ exercise.description }}</p>
-                    
-                    <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                        <span class="flex items-center gap-1">⏱️ {{ exercise.duration_minutes }} мин</span>
-                        <span class="flex items-center gap-1">🔥 {{ exercise.calories }} ккал</span>
-                        <span class="flex items-center gap-1">📊 
-                            {% if exercise.difficulty == 'beginner' %}Начинающий
-                            {% elif exercise.difficulty == 'intermediate' %}Средний
-                            {% elif exercise.difficulty == 'advanced' %}Продвинутый
-                            {% endif %}
-                        </span>
-                    </div>
-                    
-                    <div class="flex items-center gap-2">
-                        <button onclick="openExerciseModal('{{ exercise.id }}')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
-                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition favorite-btn" data-id="{{ exercise.id }}">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+            <!-- Карточки будут вставляться через JavaScript -->
         </div>
 
         <!-- Сообщение если нет результатов -->
@@ -265,13 +337,17 @@
             <p class="text-slate-500 text-lg">По вашему запросу ничего не найдено</p>
         </div>
 
-        <!-- Пагинация -->
-        <div class="flex justify-center mt-12 gap-2">
-            <button class="w-10 h-10 rounded-xl bg-white text-slate-600 hover:bg-indigo-600 hover:text-white transition">1</button>
-            <button class="w-10 h-10 rounded-xl bg-white text-slate-600 hover:bg-indigo-600 hover:text-white transition">2</button>
-            <button class="w-10 h-10 rounded-xl bg-white text-slate-600 hover:bg-indigo-600 hover:text-white transition">3</button>
-            <button class="w-10 h-10 rounded-xl bg-white text-slate-600 hover:bg-indigo-600 hover:text-white transition">4</button>
-            <button class="w-10 h-10 rounded-xl bg-white text-slate-600 hover:bg-indigo-600 hover:text-white transition">5</button>
+        <!-- Пагинация - замените существующий блок на этот -->
+        <div class="flex flex-col items-center gap-4 mt-12">
+            <!-- Кнопки навигации по страницам -->
+            <div class="flex items-center gap-3 flex-wrap justify-center" id="pagination">
+                <!-- Пагинация будет вставляться через JavaScript -->
+            </div>
+            
+            <!-- Информация о текущей странице -->
+            <div class="flex items-center gap-4 text-sm" id="paginationInfo">
+                <!-- Информация будет вставляться через JavaScript -->
+            </div>
         </div>
     </div>
 
@@ -296,9 +372,278 @@
     {% endwith %}
 
     <script>
-    // Передаем данные из Flask в JavaScript (ТОЛЬКО ОДИН РАЗ!)
+    // Передаем данные из Flask в JavaScript
     const exercisesData = {{ exercises | tojson| safe }};
     console.log('Exercises loaded:', exercisesData);
+    
+    // Конфигурация пагинации
+    const ITEMS_PER_PAGE = 9;
+    let currentPage = 1;
+    let filteredExercises = exercisesData;
+    
+    // Функция для создания HTML карточки
+    function createExerciseCard(exercise) {
+        const categoryColors = {
+            'cardio': 'bg-orange-100 text-orange-600',
+            'strength': 'bg-emerald-100 text-emerald-600',
+            'yoga': 'bg-purple-100 text-purple-600',
+            'stretching': 'bg-blue-100 text-blue-600'
+        };
+        
+        const categoryDisplay = {
+            'cardio': 'Кардио',
+            'strength': 'Силовая',
+            'yoga': 'Йога',
+            'stretching': 'Растяжка'
+        };
+        
+        const difficultyDisplay = {
+            'beginner': 'Начинающий',
+            'intermediate': 'Средний',
+            'advanced': 'Продвинутый'
+        };
+        
+        const categoryClass = categoryColors[exercise.category] || 'bg-gray-100 text-gray-600';
+        const categoryText = categoryDisplay[exercise.category] || exercise.category;
+        const difficultyText = difficultyDisplay[exercise.difficulty] || exercise.difficulty;
+        
+        return `
+            <div class="exercise-card glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative"
+                 data-category="${exercise.category}"
+                 data-difficulty="${exercise.difficulty}"
+                 data-title="${exercise.title.toLowerCase()}"
+                 data-id="${exercise.id}">
+                
+                <!-- Фоновое изображение -->
+                <div class="h-48 bg-cover bg-center relative" style="background-image: url('${exercise.image_url}');">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    <span class="absolute top-4 right-4 px-3 py-1 ${categoryClass} rounded-full text-xs font-medium shadow-lg z-10">
+                        ${categoryText}
+                    </span>
+                </div>
+                
+                <!-- Контент -->
+                <div class="p-6 bg-white/90 backdrop-blur-sm">
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">${exercise.title}</h3>
+                    <p class="text-slate-600 text-sm mb-4">${exercise.description || ''}</p>
+                    
+                    <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
+                        <span class="flex items-center gap-1">⏱️ ${exercise.duration_minutes} мин</span>
+                        <span class="flex items-center gap-1">🔥 ${exercise.calories} ккал</span>
+                        <span class="flex items-center gap-1">📊 ${difficultyText}</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <button onclick="openExerciseModal('${exercise.id}')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
+                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition favorite-btn" data-id="${exercise.id}">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Функция для отображения текущей страницы
+    function displayCurrentPage() {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const pageExercises = filteredExercises.slice(startIndex, endIndex);
+        
+        const grid = document.getElementById('exercisesGrid');
+        grid.innerHTML = pageExercises.map(exercise => createExerciseCard(exercise)).join('');
+        
+        // Обновляем пагинацию
+        updatePagination();
+        
+        // Обновляем информацию о странице
+        const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
+        const info = document.getElementById('paginationInfo');
+        if (filteredExercises.length > 0) {
+            info.textContent = `Показано ${startIndex + 1}-${Math.min(endIndex, filteredExercises.length)} из ${filteredExercises.length} тренировок`;
+        } else {
+            info.textContent = '';
+        }
+        
+        // Показываем/скрываем сообщение о пустых результатах
+        const noResults = document.getElementById('noResults');
+        if (filteredExercises.length === 0) {
+            noResults.classList.remove('hidden');
+        } else {
+            noResults.classList.add('hidden');
+        }
+        
+        // Перепривязываем обработчики для кнопок избранного
+        attachFavoriteHandlers();
+    }
+    
+// Функция для обновления пагинации
+function updatePagination() {
+    const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
+    const pagination = document.getElementById('pagination');
+    const infoElement = document.getElementById('paginationInfo');
+    
+    // Обновляем информацию о странице
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, filteredExercises.length);
+    
+    if (filteredExercises.length > 0) {
+        infoElement.innerHTML = `
+            <span class="text-slate-600">
+                Страница <span class="font-bold text-indigo-600 text-lg">${currentPage}</span> из 
+                <span class="font-bold text-emerald-600 text-lg">${totalPages}</span>
+            </span>
+            <span class="text-slate-400 mx-2">|</span>
+            <span class="text-slate-600">
+                Показано <span class="font-bold text-indigo-600">${startIndex}-${endIndex}</span> 
+                из <span class="font-bold text-emerald-600">${filteredExercises.length}</span>
+            </span>
+        `;
+    } else {
+        infoElement.innerHTML = '';
+    }
+    
+    if (totalPages <= 1) {
+        if (totalPages === 1) {
+            // Если всего одна страница, показываем только информацию
+            pagination.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="pagination-btn active">1</span>
+                </div>
+            `;
+        } else {
+            pagination.innerHTML = '';
+        }
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Кнопка "Предыдущая"
+    paginationHTML += `
+        <button onclick="changePage(${currentPage - 1})" 
+                class="pagination-btn prev-next" 
+                ${currentPage === 1 ? 'disabled' : ''}>
+            <span class="flex items-center gap-2">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span class="hidden sm:inline">Назад</span>
+            </span>
+        </button>
+    `;
+    
+    // Определяем диапазон страниц для отображения
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    
+    if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+    }
+    
+    // Кнопка первой страницы с троеточием
+    if (startPage > 1) {
+        paginationHTML += `<button onclick="changePage(1)" class="pagination-btn">1</button>`;
+        if (startPage > 2) {
+            paginationHTML += `<span class="pagination-dots">•••</span>`;
+        }
+    }
+    
+    // Кнопки страниц
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <button onclick="changePage(${i})" 
+                    class="pagination-btn ${i === currentPage ? 'active' : ''}">
+                ${i}
+            </button>
+        `;
+    }
+    
+    // Кнопка последней страницы с троеточием
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<span class="pagination-dots">•••</span>`;
+        }
+        paginationHTML += `<button onclick="changePage(${totalPages})" class="pagination-btn">${totalPages}</button>`;
+    }
+    
+    // Кнопка "Следующая"
+    paginationHTML += `
+        <button onclick="changePage(${currentPage + 1})" 
+                class="pagination-btn prev-next"
+                ${currentPage === totalPages ? 'disabled' : ''}>
+            <span class="flex items-center gap-2">
+                <span class="hidden sm:inline">Вперед</span>
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </span>
+        </button>
+    `;
+    
+    pagination.innerHTML = paginationHTML;
+}
+    
+// Функция для смены страницы
+function changePage(page) {
+    const totalPages = Math.ceil(filteredExercises.length / ITEMS_PER_PAGE);
+    if (page < 1 || page > totalPages) return;
+    
+    // Добавляем эффект пульсации при смене страницы
+    const grid = document.getElementById('exercisesGrid');
+    grid.style.opacity = '0.5';
+    grid.style.transform = 'scale(0.98)';
+    grid.style.transition = 'all 0.2s ease';
+    
+    setTimeout(() => {
+        currentPage = page;
+        displayCurrentPage();
+        
+        // Возвращаем нормальный вид
+        grid.style.opacity = '1';
+        grid.style.transform = 'scale(1)';
+        
+        // Плавная прокрутка к началу сетки
+        grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+}    
+    // Функция фильтрации упражнений
+    function filterExercises() {
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        const difficulty = document.getElementById('difficultyFilter').value;
+        
+        filteredExercises = exercisesData.filter(exercise => {
+            const matchesSearch = exercise.title.toLowerCase().includes(searchText);
+            const matchesCategory = category === 'all' || exercise.category === category;
+            const matchesDifficulty = difficulty === 'all' || exercise.difficulty === difficulty;
+            
+            return matchesSearch && matchesCategory && matchesDifficulty;
+        });
+        
+        // Сбрасываем на первую страницу при фильтрации
+        currentPage = 1;
+        displayCurrentPage();
+    }
+    
+    // Функция для привязки обработчиков к кнопкам избранного
+    function attachFavoriteHandlers() {
+        document.querySelectorAll('.favorite-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const svg = this.querySelector('svg');
+                if (svg.getAttribute('fill') === 'currentColor') {
+                    svg.setAttribute('fill', 'none');
+                    svg.classList.remove('text-red-500');
+                } else {
+                    svg.setAttribute('fill', 'currentColor');
+                    svg.classList.add('text-red-500');
+                }
+            });
+        });
+    }
     
     // Функция открытия модального окна
     function openExerciseModal(exerciseId) {
@@ -311,8 +656,6 @@
             console.error('Exercise not found with id:', exerciseId);
             return;
         }
-        
-        console.log('Found exercise:', exercise);
         
         // Создаем модальное окно
         const modalId = `modal-${exerciseId}`;
@@ -397,10 +740,13 @@
                         ${exercise.video_url ? `
                         <div class="mb-6">
                             <h3 class="font-semibold text-slate-800 mb-2">Видео упражнения</h3>
-                            <video autoplay loop muted playsinline class="w-full rounded-xl">
-                                <source src="${exercise.video_url}" type="video/mp4">
-                                Ваш браузер не поддерживает видео.
-                            </video>
+                            <div class="relative">
+                                <video autoplay loop muted playsinline class="w-full rounded-xl border-2 border-black">
+                                    <source src="${exercise.video_url}" type="video/mp4">
+                                    Ваш браузер не поддерживает видео.
+                                </video>
+                                <div class="absolute inset-0 rounded-xl pointer-events-none border-2 border-white"></div>
+                            </div>
                         </div>
                         ` : ''}                        
 
@@ -441,8 +787,6 @@
     function startWorkout(exerciseId) {
         console.log('Starting workout:', exerciseId);
         alert('Тренировка началась!');
-        // Здесь можно добавить перенаправление на страницу тренировки
-        // window.location.href = `/workout/${exerciseId}`;
     }
     
     // Функция закрытия модального окна
@@ -461,61 +805,11 @@
         }
     }
     
-    // Функция фильтрации упражнений
-    function filterExercises() {
-        const searchText = document.getElementById('searchInput').value.toLowerCase();
-        const category = document.getElementById('categoryFilter').value;
-        const difficulty = document.getElementById('difficultyFilter').value;
-        
-        const cards = document.querySelectorAll('.exercise-card');
-        let visibleCount = 0;
-        
-        cards.forEach(card => {
-            const cardCategory = card.dataset.category;
-            const cardDifficulty = card.dataset.difficulty;
-            const cardTitle = card.dataset.title;
-            
-            const matchesSearch = cardTitle.includes(searchText);
-            const matchesCategory = category === 'all' || cardCategory === category;
-            const matchesDifficulty = difficulty === 'all' || cardDifficulty === difficulty;
-            
-            if (matchesSearch && matchesCategory && matchesDifficulty) {
-                card.style.display = 'block';
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
-            }
-        });
-        
-        // Показываем сообщение если нет результатов
-        const noResults = document.getElementById('noResults');
-        if (noResults) {
-            if (visibleCount === 0) {
-                noResults.classList.remove('hidden');
-            } else {
-                noResults.classList.add('hidden');
-            }
-        }
-    }
-    
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Page loaded, exercises:', exercisesData);
-        
-        // Обработчики для кнопок избранного
-        document.querySelectorAll('.favorite-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const svg = this.querySelector('svg');
-                if (svg.getAttribute('fill') === 'currentColor') {
-                    svg.setAttribute('fill', 'none');
-                    svg.classList.remove('text-red-500');
-                } else {
-                    svg.setAttribute('fill', 'currentColor');
-                    svg.classList.add('text-red-500');
-                }
-            });
-        });
+        filteredExercises = [...exercisesData];
+        displayCurrentPage();
     });
     
     // Закрытие по клику на фон
@@ -525,7 +819,6 @@
             modal.classList.remove('active');
             document.body.style.overflow = 'auto';
             
-            // Удаляем модальное окно
             setTimeout(() => {
                 if (modal && modal.parentNode) {
                     modal.parentNode.removeChild(modal);
@@ -550,6 +843,6 @@
             }
         }
     });
-</script>
+    </script>
 </body>
 </html>
