@@ -21,6 +21,10 @@ body {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.8; }
 }
+.reloading {
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
 /*reg_log.html*/
 .fit-card {
     backdrop-filter: blur(2px);
