@@ -11,6 +11,7 @@ urllib3.disable_warnings()
 
 DB_PATH = "instance/fitness.db"
 
+
 def get_user_data_by_email(email: str) -> dict | None:
 
     if not os.path.exists(DB_PATH):
@@ -21,14 +22,14 @@ def get_user_data_by_email(email: str) -> dict | None:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT username, gender, weight, height, age, fitness_level, program, goal
+            SELECT id, username, gender, weight, height, age, fitness_level, program, goal
             FROM user WHERE email = ?
         """, (email,))
         row = cursor.fetchone()
         conn.close()
 
         if row:
-            columns = ["username", "gender", "weight", "height", "age",
+            columns = ["id", "username", "gender", "weight", "height", "age",
                        "fitness_level", "program", "goal"]
             return dict(zip(columns, row))
         else:
@@ -37,6 +38,7 @@ def get_user_data_by_email(email: str) -> dict | None:
     except sqlite3.Error as e:
         print(f"Ошибка подключения к базе данных: {e}")
         return None
+
 
 def get_exercises() -> list[dict]:
 
@@ -65,6 +67,7 @@ def get_exercises() -> list[dict]:
         print(f"Ошибка подключения к базе данных: {e}")
         return []
 
+
 class GigaChatClient:
     def __init__(self, auth: GigaChatAuth, system_prompt: str = ""):
         self.auth = auth
@@ -73,7 +76,6 @@ class GigaChatClient:
     def generate_training_program(self, user_data: dict, exercises_list: list[dict]) -> dict:
 
         if not self.auth.access_token:
-            print("Токен недействителен.")
             return {"error": "Нет токена"}
 
         url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
@@ -84,20 +86,19 @@ class GigaChatClient:
             "X-Session-ID": str(uuid.uuid4())
         }
 
-        exercises_text = json.dumps(exercises_list, ensure_ascii=False)
-
         prompt = f"""
 На основе данных пользователя:
 {json.dumps(user_data, ensure_ascii=False)}
 
 И базы упражнений:
-{exercises_text}
+{json.dumps(exercises_list, ensure_ascii=False)}
 
-Составь программу тренировок на 30 дней. Выводи **только id упражнений для каждого дня**, в формате:
-Day 1: [1, 5, 10]
-Day 2: [3, 7, 12]
-...
-В конце укажи: "Total tokens used: X".
+Составь программу тренировок на 30 дней. Выводи **только id упражнений для каждого дня** в формате JSON, например:
+{{
+    "Day 1": [1, 5, 10],
+    "Day 2": [3, 7, 12],
+    ...
+}}
 """
 
         payload = {
@@ -109,16 +110,21 @@ Day 2: [3, 7, 12]
 
         try:
             response = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
-
             if response.status_code != 200:
                 return {"error": response.status_code}
 
             result = response.json()
             content = result["choices"][0]["message"]["content"]
-            usage = result.get("usage", {})
 
+
+            try:
+                program_json = json.loads(content)
+            except json.JSONDecodeError:
+                program_json = {"error": "Не удалось распарсить JSON из ответа GigaChat", "raw": content}
+
+            usage = result.get("usage", {})
             return {
-                "assistant_response": content,
+                "program": program_json,
                 "tokens": {
                     "prompt": usage.get("prompt_tokens", 0),
                     "completion": usage.get("completion_tokens", 0),
@@ -128,6 +134,22 @@ Day 2: [3, 7, 12]
 
         except requests.RequestException as e:
             return {"error": str(e)}
+
+
+def save_program_to_user(user_id: int, program_json: dict) -> bool:
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE user SET program = ? WHERE id = ?",
+                       (json.dumps(program_json, ensure_ascii=False), user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error as e:
+        print(f"Ошибка записи программы в базу: {e}")
+        return False
+
 
 def main():
     email = input("Введите ваш email: ").strip()
@@ -145,12 +167,8 @@ def main():
     AUTH_KEY = "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
     SYSTEM_PROMPT = """
 Ты – персональный фитнес-тренер. 
-Твоя задача: на основе данных пользователя (username, gender, weight, height, age, fitness_level, program, goal) 
-и базы упражнений (id, title, category, difficulty, duration_minutes, calories, sex) составить программу тренировок на 30 дней. 
-Выводи только список id упражнений для каждого дня, без описаний, текста или комментариев. 
-Подбирай упражнения, подходящие по полу (sex), уровню сложности (difficulty) и цели (goal). 
-Оптимизируй нагрузку на каждый день, чередуя категории. 
-В конце сообщения укажи: "Total tokens used: X".
+Подбирай упражнения для пользователя с учетом пола, уровня сложности и цели.
+Выводи только JSON с id упражнений на 30 дней.
 """
 
     auth = GigaChatAuth(AUTH_KEY)
@@ -163,10 +181,25 @@ def main():
 
     if "error" in result:
         print(f"Ошибка: {result['error']}")
+        return
+
+    program_json = result["program"]
+    print("\nПрограмма тренировок на 30 дней (JSON):\n")
+    print(json.dumps(program_json, ensure_ascii=False, indent=4))
+
+
+    tokens = result["tokens"]
+    print("\nСтатистика использования токенов:")
+    print(f"  - Токены запроса (prompt_tokens): {tokens['prompt']}")
+    print(f"  - Токены ответа (completion_tokens): {tokens['completion']}")
+    print(f"  - Всего токенов (total_tokens): {tokens['total']}")
+
+
+    if save_program_to_user(user_data["id"], program_json):
+        print("\nПрограмма успешно сохранена в базе!")
     else:
-        print("\nПрограмма тренировок на 30 дней:\n")
-        print(result["assistant_response"])
-        print(f"\nВсего токенов потрачено: {result['tokens']['total']}")
+        print("\nНе удалось сохранить программу в базе.")
+
 
 if __name__ == "__main__":
     main()
