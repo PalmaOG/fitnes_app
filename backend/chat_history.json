@@ -1,0 +1,12 @@
+[
+    {
+        "timestamp": "2026-03-26 12:19:11",
+        "user_message": "ривет ",
+        "assistant_response": "Привет-привет! Как дела?",
+        "tokens": {
+            "prompt": 38,
+            "completion": 10,
+            "total": 48
+        }
+    }
+]
