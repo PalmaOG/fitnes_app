@@ -2,26 +2,83 @@ import requests
 import json
 import uuid
 from datetime import datetime
+import sqlite3
 from connect import GigaChatAuth
 import urllib3
+import os
 
 urllib3.disable_warnings()
+
+DB_PATH = "instance/fitness.db"
+
+
+def get_user_data_by_email(email: str) -> dict | None:
+
+    if not os.path.exists(DB_PATH):
+        print(f"База данных не найдена по пути {DB_PATH}")
+        return None
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, gender, weight, height, age, fitness_level, program, goal
+            FROM user WHERE email = ?
+        """, (email,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            columns = ["id", "username", "gender", "weight", "height", "age",
+                       "fitness_level", "program", "goal"]
+            return dict(zip(columns, row))
+        else:
+            return None
+
+    except sqlite3.Error as e:
+        print(f"Ошибка подключения к базе данных: {e}")
+        return None
+
+
+def get_exercises() -> list[dict]:
+
+    if not os.path.exists(DB_PATH):
+        print(f"База данных не найдена по пути {DB_PATH}")
+        return []
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, title, description, category, difficulty, duration_minutes, calories, image_url, video_url, detailed_description, sex
+            FROM exercises
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        columns = ["id", "title", "description", "category", "difficulty",
+                   "duration_minutes", "calories", "image_url", "video_url",
+                   "detailed_description", "sex"]
+
+        exercises_list = [dict(zip(columns, row)) for row in rows]
+        return exercises_list
+
+    except sqlite3.Error as e:
+        print(f"Ошибка подключения к базе данных: {e}")
+        return []
 
 
 class GigaChatClient:
     def __init__(self, auth: GigaChatAuth, system_prompt: str = ""):
         self.auth = auth
         self.system_prompt = system_prompt
-        self.history = []
-        self.history_file = "chat_history.json"
 
-    def send_message(self, message: str) -> dict:
+    def generate_training_program(self, user_data: dict, exercises_list: list[dict]) -> dict:
+
         if not self.auth.access_token:
-            print("Токен недействителен.")
             return {"error": "Нет токена"}
 
         url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-
         headers = {
             "Authorization": f"Bearer {self.auth.access_token}",
             "Content-Type": "application/json",
@@ -29,31 +86,45 @@ class GigaChatClient:
             "X-Session-ID": str(uuid.uuid4())
         }
 
+        prompt = f"""
+На основе данных пользователя:
+{json.dumps(user_data, ensure_ascii=False)}
+
+И базы упражнений:
+{json.dumps(exercises_list, ensure_ascii=False)}
+
+Составь программу тренировок на 30 дней. Выводи **только id упражнений для каждого дня** в формате JSON, например:
+{{
+    "Day 1": [1, 5, 10],
+    "Day 2": [3, 7, 12],
+    ...
+}}
+"""
+
         payload = {
             "model": "GigaChat-2",
-            "messages": self._build_messages(message),
+            "messages": [{"role": "system", "content": self.system_prompt},
+                         {"role": "user", "content": prompt}],
             "temperature": 0.7
         }
 
         try:
-            response = requests.post(
-                url,
-                headers=headers,
-                data=json.dumps(payload),
-                verify=False
-            )
-
+            response = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
             if response.status_code != 200:
                 return {"error": response.status_code}
 
             result = response.json()
             content = result["choices"][0]["message"]["content"]
-            usage = result.get("usage", {})
 
-            record = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "user_message": message,
-                "assistant_response": content,
+
+            try:
+                program_json = json.loads(content)
+            except json.JSONDecodeError:
+                program_json = {"error": "Не удалось распарсить JSON из ответа GigaChat", "raw": content}
+
+            usage = result.get("usage", {})
+            return {
+                "program": program_json,
                 "tokens": {
                     "prompt": usage.get("prompt_tokens", 0),
                     "completion": usage.get("completion_tokens", 0),
@@ -61,68 +132,73 @@ class GigaChatClient:
                 }
             }
 
-            self.history.append(record)
-            self._save_history()
-
-            return record
-
         except requests.RequestException as e:
             return {"error": str(e)}
 
-    def _build_messages(self, new_message: str):
-        messages = []
 
-        if self.system_prompt:
-            messages.append({"role": "system", "content": self.system_prompt})
+def save_program_to_user(user_id: int, program_json: dict) -> bool:
 
-        for item in self.history[-10:]:
-            messages.append({"role": "user", "content": item["user_message"]})
-            messages.append({"role": "assistant", "content": item["assistant_response"]})
-
-        messages.append({"role": "user", "content": new_message})
-        return messages
-
-    def _save_history(self):
-        try:
-            with open(self.history_file, "w", encoding="utf-8") as f:
-                json.dump(self.history, f, ensure_ascii=False, indent=4)
-        except Exception as e:
-            print(f"Ошибка сохранения истории: {e}")
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE user SET program = ? WHERE id = ?",
+                       (json.dumps(program_json, ensure_ascii=False), user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error as e:
+        print(f"Ошибка записи программы в базу: {e}")
+        return False
 
 
 def main():
-    AUTH_KEY = "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
+    email = input("Введите ваш email: ").strip()
+    user_data = get_user_data_by_email(email)
 
+    if not user_data:
+        print("Пользователь не найден в базе. Программа завершена.")
+        return
+
+    exercises_list = get_exercises()
+    if not exercises_list:
+        print("Упражнения не найдены в базе.")
+        return
+
+    AUTH_KEY = "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
     SYSTEM_PROMPT = """
-Ты живёшь в деревне и говоришь очень глупо. 
-Отвечай на всё максимально простыми словами.
+Ты – персональный фитнес-тренер. 
+Подбирай упражнения для пользователя с учетом пола, уровня сложности и цели.
+Выводи только JSON с id упражнений на 30 дней.
 """
 
     auth = GigaChatAuth(AUTH_KEY)
-
     if not auth.get_new_token():
         print("Не удалось получить токен")
         return
 
     client = GigaChatClient(auth, SYSTEM_PROMPT)
+    result = client.generate_training_program(user_data, exercises_list)
 
-    print("\nЧат с GigaChat (введи 'exit' для выхода)\n")
+    if "error" in result:
+        print(f"Ошибка: {result['error']}")
+        return
 
-    while True:
-        user_input = input("Ты: ")
+    program_json = result["program"]
+    print("\nПрограмма тренировок на 30 дней (JSON):\n")
+    print(json.dumps(program_json, ensure_ascii=False, indent=4))
 
-        if user_input.lower() in ["exit", "выход"]:
 
-            break
+    tokens = result["tokens"]
+    print("\nСтатистика использования токенов:")
+    print(f"  - Токены запроса (prompt_tokens): {tokens['prompt']}")
+    print(f"  - Токены ответа (completion_tokens): {tokens['completion']}")
+    print(f"  - Всего токенов (total_tokens): {tokens['total']}")
 
-        result = client.send_message(user_input)
 
-        if "error" in result:
-            print(f"Ошибка: {result['error']}\n")
-            continue
-
-        print(f"GigaChat: {result['assistant_response']}")
-        print(f"Токены: {result['tokens']}\n")
+    if save_program_to_user(user_data["id"], program_json):
+        print("\nПрограмма успешно сохранена в базе!")
+    else:
+        print("\nНе удалось сохранить программу в базе.")
 
 
 if __name__ == "__main__":
