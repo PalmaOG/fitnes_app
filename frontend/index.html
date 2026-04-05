@@ -26,6 +26,11 @@
                 </div>
             </div>
             <div>
+                {% if is_admin %}
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 text-white font-semibold rounded-2xl shadow-lg transition">
+                    Админ панель
+                </a>
+                {% endif %}                
                 <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">Выйти</a>
             </div>
             
