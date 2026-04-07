@@ -172,8 +172,16 @@ def workouts():
 
     return render_template('programs.html', username=session.get('username'), exercises=exercises_list)
 
+
+@app.route('/profile')
+@login_required
+def profile():
+    user = User.query.get(session['user_id'])
+    return render_template('profile.html', 
+                         username=session.get('username'),
+                         user=user)
+
 #Маршруты сервера
-# API для назначения/снятия прав администратора
 @app.route('/api/admin/set-admin/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -200,7 +208,7 @@ def set_admin(user_id):
         flash(f'Ошибка: {str(e)}', 'error')
         return redirect(url_for('admin_panel'))
 
-# API для удаления пользователя (только для админа)
+
 @app.route('/api/admin/delete-user/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -227,7 +235,6 @@ def delete_user(user_id):
         flash(f'Ошибка: {str(e)}', 'error')
         return redirect(url_for('admin_panel'))
 
-# API для добавления/редактирования упражнений (только для админа)
 @app.route('/api/admin/add-exercise', methods=['POST'])
 @login_required
 @admin_required
@@ -406,8 +413,8 @@ def logout():
     return redirect(url_for('auth'))
 
 
-@app.route('/api/updateProfile', methods=['POST'])
-def updateProfile():
+@app.route('/api/intro', methods=['POST'])
+def introduction():
     try:
         # Получаем ID пользователя из сессии
         user_id = session.get('user_id')
@@ -458,6 +465,108 @@ def updateProfile():
         flash(f'Произошла ошибка при сохранении профиля: {str(e)}', 'error')
         return redirect(url_for('main'))
 
+@app.route('/api/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        if not user:
+            flash('Пользователь не найден', 'error')
+            return redirect(url_for('profile'))
+        
+        # Получаем данные из формы
+        username = request.form.get('username')
+        email = request.form.get('email')
+        gender = request.form.get('gender')
+        weight = request.form.get('weight')
+        height = request.form.get('height')
+        age = request.form.get('age')
+        fitness_level = request.form.get('fitness_level')
+        
+        # Проверяем уникальность email
+        if email and email != user.email:
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                flash('Пользователь с таким email уже существует', 'error')
+                return redirect(url_for('profile'))
+        
+        # Проверяем уникальность username
+        if username and username != user.username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Пользователь с таким именем уже существует', 'error')
+                return redirect(url_for('profile'))
+        
+        # Преобразование типов данных
+        try:
+            weight = float(weight) if weight else None
+            height = float(height) if height else None
+            age = int(age) if age else None
+        except ValueError:
+            flash('Пожалуйста, введите корректные числовые значения', 'error')
+            return redirect(url_for('profile'))
+        
+        # Обновляем данные
+        if username:
+            user.username = username
+            session['username'] = username
+        if email:
+            user.email = email
+        user.gender = gender
+        user.weight = weight
+        user.height = height
+        user.age = age
+        user.fitness_level = fitness_level
+        
+        db.session.commit()
+        
+        flash('Профиль успешно обновлен!', 'success')
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Произошла ошибка: {str(e)}', 'error')
+        return redirect(url_for('profile'))
+
+@app.route('/api/change-password', methods=['POST'])
+@login_required
+def change_password():
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Проверяем старый пароль
+        if not user.check_password(old_password):
+            flash('Неверный текущий пароль', 'error')
+            return redirect(url_for('profile'))
+        
+        # Проверяем совпадение нового пароля
+        if new_password != confirm_password:
+            flash('Новые пароли не совпадают', 'error')
+            return redirect(url_for('profile'))
+        
+        # Проверяем длину пароля
+        if len(new_password) < 6:
+            flash('Новый пароль должен содержать минимум 6 символов', 'error')
+            return redirect(url_for('profile'))
+        
+        # Обновляем пароль
+        user.set_password(new_password)
+        db.session.commit()
+        
+        flash('Пароль успешно изменен!', 'success')
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Произошла ошибка: {str(e)}', 'error')
+        return redirect(url_for('profile'))
 
 if __name__ == '__main__':
     app.run(debug=True)
