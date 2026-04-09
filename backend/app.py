@@ -1,15 +1,30 @@
 from functools import wraps
 import secrets
-from flask import Flask, flash, redirect,render_template, request, url_for, session
+from flask import Flask, flash, jsonify, redirect,render_template, request, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash,check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime
+import os
 
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend/static')
 
 # Конфигурация БД (SQLite)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fitness.db'
 app.secret_key = secrets.token_hex(16)  
+app.config['UPLOAD_FOLDER_IMAGES'] = '../frontend/static/images/workout'
+app.config['UPLOAD_FOLDER_VIDEOS'] = '../frontend/static/videos'
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['ALLOWED_EXTENSIONS_IMAGES'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['ALLOWED_EXTENSIONS_VIDEOS'] = {'mp4', 'webm', 'ogg', 'mov'}
+
+# Создаем папки если их нет
+os.makedirs(app.config['UPLOAD_FOLDER_IMAGES'], exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER_VIDEOS'], exist_ok=True)
+
+def allowed_file(filename, allowed_extensions):
+    """Проверка разрешенного расширения файла"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 # Инициализируем БД
 db = SQLAlchemy(app)
@@ -27,6 +42,7 @@ class User(db.Model):
     age = db.Column(db.Integer, nullable=True)
     fitness_level = db.Column(db.String(30), nullable=True)
     first_login = db.Column(db.Boolean, default=True)  # Флаг первого входа
+    adm = db.Column(db.Boolean, default=False)
 
     
     def set_password(self, password):
@@ -34,6 +50,9 @@ class User(db.Model):
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_admin(self):
+        return self.adm == True
 
 #Модель упражнений
 class Exercise(db.Model):
@@ -55,6 +74,8 @@ class Exercise(db.Model):
     
     # Детальная информация для модального окна
     detailed_description = db.Column(db.Text, nullable=True)  # Подробное описание
+
+    sex = db.Column(db.String(10), nullable=False)
     
     
     def __repr__(self):
@@ -70,6 +91,20 @@ def login_required(f):
             return redirect(url_for('auth'))
         return f(*args, **kwargs)
     return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Пожалуйста, войдите в систему', 'warning')
+            return redirect(url_for('auth'))
+        user = User.query.get(session['user_id'])
+        if not user or not user.is_admin():
+            flash('У вас нет прав доступа к этой странице', 'error')
+            return redirect(url_for('main'))
+        
+        return f(*args, **kwargs)
+    return wrapper
 
 # Маршруты страниц
 @app.route('/')
@@ -89,32 +124,244 @@ def auth():
 @app.route('/main')
 @login_required
 def main():
-    return render_template('index.html', username=session.get('username'), first_login = session.get('first_login'))
+    user = User.query.get(session['user_id'])
+    is_admin = user.is_admin() if user else False
+    return render_template('index.html', 
+                           username=session.get('username'), 
+                           first_login = session.get('first_login'),
+                           is_admin=is_admin)
+
+# Админ панель
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_panel():
+    users = User.query.all()
+    exercises = Exercise.query.all()
+    return render_template('admin.html', 
+                         username=session.get('username'), 
+                         users=users, 
+                         exercises=exercises)
 
 @app.route('/programs')
 @login_required
 def workouts():
     exercises = Exercise.query.all()
     # Преобразуем объекты Exercise в словари для JSON сериализации
+    user = User.query.get(session['user_id'])
+    if not user:
+        flash('Пользователь не найден', 'error')
+        return redirect(url_for('workouts'))
+    
     exercises_list = []
     for exercise in exercises:
-        exercise_dict = {
-            'id': exercise.id,
-            'title': exercise.title,
-            'description': exercise.description,
-            'category': exercise.category,
-            'difficulty': exercise.difficulty,
-            'duration_minutes': exercise.duration_minutes,
-            'calories': exercise.calories,
-            'image_url': exercise.image_url,
-            'video_url': exercise.video_url,
-            'detailed_description': exercise.detailed_description
-        }
-        exercises_list.append(exercise_dict)
+        if exercise.sex == user.gender:
+            exercise_dict = {
+                'id': exercise.id,
+                'title': exercise.title,
+                'description': exercise.description,
+                'category': exercise.category,
+                'difficulty': exercise.difficulty,
+                'duration_minutes': exercise.duration_minutes,
+                'calories': exercise.calories,
+                'image_url': exercise.image_url,
+                'video_url': exercise.video_url,
+                'detailed_description': exercise.detailed_description
+            }
+            exercises_list.append(exercise_dict)
 
     return render_template('programs.html', username=session.get('username'), exercises=exercises_list)
 
+
+@app.route('/profile')
+@login_required
+def profile():
+    user = User.query.get(session['user_id'])
+    return render_template('profile.html', 
+                         username=session.get('username'),
+                         user=user)
+
 #Маршруты сервера
+@app.route('/api/admin/set-admin/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def set_admin(user_id):
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Пользователь не найден'}), 404
+        
+        # Нельзя снять права администратора с самого себя
+        if user.id == session['user_id']:
+            flash('Нельзя изменить права администратора у самого себя', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        user.adm = not user.adm  # Переключаем статус
+        db.session.commit()
+        
+        status = 'назначены' if user.adm else 'сняты'
+        flash(f'Права администратора {status} для пользователя {user.username}', 'success')
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка: {str(e)}', 'error')
+        return redirect(url_for('admin_panel'))
+
+
+@app.route('/api/admin/delete-user/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            flash('Пользователь не найден', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Нельзя удалить самого себя
+        if user.id == session['user_id']:
+            flash('Нельзя удалить самого себя', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'Пользователь {user.username} успешно удален', 'success')
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка: {str(e)}', 'error')
+        return redirect(url_for('admin_panel'))
+
+@app.route('/api/admin/add-exercise', methods=['POST'])
+@login_required
+@admin_required
+def add_exercise():
+    try:
+        # Получаем текстовые данные
+        title = request.form.get('title')
+        description = request.form.get('description')
+        category = request.form.get('category')
+        difficulty = request.form.get('difficulty')
+        duration_minutes = request.form.get('duration_minutes')
+        calories = request.form.get('calories')
+        detailed_description = request.form.get('detailed_description')
+        sex = request.form.get('sex')
+        
+        # Валидация обязательных полей
+        if not all([title, category, duration_minutes, calories, sex]):
+            flash('Пожалуйста, заполните все обязательные поля', 'error')
+            return redirect(url_for('admin_panel'))
+        # Обработка загрузки изображения
+        image_url = None
+        if 'image_file' in request.files:
+            image_file = request.files['image_file']
+            if image_file and image_file.filename and allowed_file(image_file.filename, app.config['ALLOWED_EXTENSIONS_IMAGES']):
+                # Генерируем уникальное имя файла
+                filename = secure_filename(image_file.filename)
+                name, ext = os.path.splitext(filename)
+                unique_filename = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+                
+                # Сохраняем файл
+                image_path = os.path.join(app.config['UPLOAD_FOLDER_IMAGES'], unique_filename)
+                image_file.save(image_path)
+                image_url = f"/static/images/workout/{unique_filename}"
+            elif image_file and image_file.filename:
+                flash('Неподдерживаемый формат изображения. Используйте: PNG, JPG, JPEG, GIF, WEBP', 'error')
+                return redirect(url_for('admin_panel'))
+        
+        # Если изображение не загружено, проверяем URL
+        if not image_url:
+            image_url = request.form.get('image_url')
+            if not image_url:
+                flash('Пожалуйста, загрузите изображение или укажите URL', 'error')
+                return redirect(url_for('admin_panel'))
+        
+        # Обработка загрузки видео
+        video_url = None
+        if 'video_file' in request.files:
+            video_file = request.files['video_file']
+            if video_file and video_file.filename and allowed_file(video_file.filename, app.config['ALLOWED_EXTENSIONS_VIDEOS']):
+                # Генерируем уникальное имя файла
+                filename = secure_filename(video_file.filename)
+                name, ext = os.path.splitext(filename)
+                unique_filename = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+                
+                # Сохраняем файл
+                video_path = os.path.join(app.config['UPLOAD_FOLDER_VIDEOS'], unique_filename)
+                video_file.save(video_path)
+                video_url = f"/static/videos/{unique_filename}"
+            elif video_file and video_file.filename:
+                flash('Неподдерживаемый формат видео. Используйте: MP4, WEBM, OGG, MOV', 'error')
+                return redirect(url_for('admin_panel'))
+        
+        # Если видео не загружено, берем из URL
+        if not video_url:
+            video_url = request.form.get('video_url')
+        
+        # Создаем новое упражнение
+        new_exercise = Exercise(
+            title=title,
+            description=description,
+            category=category,
+            difficulty=difficulty,
+            duration_minutes=int(duration_minutes),
+            calories=int(calories),
+            image_url=image_url,
+            video_url=video_url,
+            detailed_description=detailed_description,
+            sex=sex
+        )
+        
+        db.session.add(new_exercise)
+        db.session.commit()
+        
+        flash('Упражнение успешно добавлено!', 'success')
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка: {str(e)}', 'error')
+        return redirect(url_for('admin_panel'))
+
+# API для удаления упражнения (только для админа)
+@app.route('/api/admin/delete-exercise/<int:exercise_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_exercise(exercise_id):
+    try:
+        exercise = Exercise.query.get(exercise_id)
+        if not exercise:
+            flash('Упражнение не найдено', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Удаляем файл изображения если он существует и был загружен на сервер
+        if exercise.image_url and '/static/images/workout/' in exercise.image_url:
+            image_path = exercise.image_url.replace('/static/', '../frontend/static/')
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        
+        # Удаляем файл видео если он существует и был загружен на сервер
+        if exercise.video_url and '/static/videos/workout/' in exercise.video_url:
+            video_path = exercise.video_url.replace('/static/', '../frontend/static/')
+            if os.path.exists(video_path):
+                os.remove(video_path)
+        
+        db.session.delete(exercise)
+        db.session.commit()
+        
+        flash(f'Упражнение {exercise.title} успешно удалено', 'success')
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Ошибка: {str(e)}', 'error')
+        return redirect(url_for('admin_panel'))
+
+####################    
+
 @app.route('/api/login', methods=['POST'])
 def login():
     email = request.form['email']
@@ -166,8 +413,8 @@ def logout():
     return redirect(url_for('auth'))
 
 
-@app.route('/api/updateProfile', methods=['POST'])
-def updateProfile():
+@app.route('/api/intro', methods=['POST'])
+def introduction():
     try:
         # Получаем ID пользователя из сессии
         user_id = session.get('user_id')
@@ -218,6 +465,108 @@ def updateProfile():
         flash(f'Произошла ошибка при сохранении профиля: {str(e)}', 'error')
         return redirect(url_for('main'))
 
+@app.route('/api/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        if not user:
+            flash('Пользователь не найден', 'error')
+            return redirect(url_for('profile'))
+        
+        # Получаем данные из формы
+        username = request.form.get('username')
+        email = request.form.get('email')
+        gender = request.form.get('gender')
+        weight = request.form.get('weight')
+        height = request.form.get('height')
+        age = request.form.get('age')
+        fitness_level = request.form.get('fitness_level')
+        
+        # Проверяем уникальность email
+        if email and email != user.email:
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                flash('Пользователь с таким email уже существует', 'error')
+                return redirect(url_for('profile'))
+        
+        # Проверяем уникальность username
+        if username and username != user.username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                flash('Пользователь с таким именем уже существует', 'error')
+                return redirect(url_for('profile'))
+        
+        # Преобразование типов данных
+        try:
+            weight = float(weight) if weight else None
+            height = float(height) if height else None
+            age = int(age) if age else None
+        except ValueError:
+            flash('Пожалуйста, введите корректные числовые значения', 'error')
+            return redirect(url_for('profile'))
+        
+        # Обновляем данные
+        if username:
+            user.username = username
+            session['username'] = username
+        if email:
+            user.email = email
+        user.gender = gender
+        user.weight = weight
+        user.height = height
+        user.age = age
+        user.fitness_level = fitness_level
+        
+        db.session.commit()
+        
+        flash('Профиль успешно обновлен!', 'success')
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Произошла ошибка: {str(e)}', 'error')
+        return redirect(url_for('profile'))
+
+@app.route('/api/change-password', methods=['POST'])
+@login_required
+def change_password():
+    try:
+        user_id = session.get('user_id')
+        user = User.query.get(user_id)
+        
+        old_password = request.form.get('old_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Проверяем старый пароль
+        if not user.check_password(old_password):
+            flash('Неверный текущий пароль', 'error')
+            return redirect(url_for('profile'))
+        
+        # Проверяем совпадение нового пароля
+        if new_password != confirm_password:
+            flash('Новые пароли не совпадают', 'error')
+            return redirect(url_for('profile'))
+        
+        # Проверяем длину пароля
+        if len(new_password) < 6:
+            flash('Новый пароль должен содержать минимум 6 символов', 'error')
+            return redirect(url_for('profile'))
+        
+        # Обновляем пароль
+        user.set_password(new_password)
+        db.session.commit()
+        
+        flash('Пароль успешно изменен!', 'success')
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Произошла ошибка: {str(e)}', 'error')
+        return redirect(url_for('profile'))
 
 if __name__ == '__main__':
     app.run(debug=True)

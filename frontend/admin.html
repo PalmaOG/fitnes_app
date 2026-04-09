@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitHub - Админ панель</title>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .tab-active {
+            background: linear-gradient(to right, #4f46e5, #10b981);
+            color: white;
+        }
+        .tab-inactive {
+            background: white;
+            color: #4f46e5;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 2rem;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.7);
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50">
+    
+    <!-- Верхняя панель -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/main" class="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-md hover:shadow-lg transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Админ панель</h1>
+                    <p class="text-sm text-slate-500">Управление пользователями и упражнениями</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg transition">Выйти</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Вкладки -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex gap-4 mb-8">
+            <button onclick="showTab('users')" id="tab-users" class="px-6 py-3 rounded-xl font-semibold transition-all tab-active">
+                👥 Пользователи
+            </button>
+            <button onclick="showTab('exercises')" id="tab-exercises" class="px-6 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
+                💪 Упражнения
+            </button>
+            <button onclick="showTab('add-exercise')" id="tab-add-exercise" class="px-6 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
+                ➕ Добавить упражнение
+            </button>
+        </div>
+
+        <!-- Вкладка: Пользователи -->
+        <div id="users-tab" class="tab-content">
+            <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Список пользователей</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">ID</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Имя</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Email</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Роль</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr class="border-b border-slate-200 hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 text-sm">{{ user.id }}</td>
+                                <td class="px-4 py-3 text-sm font-medium">{{ user.username }}</td>
+                                <td class="px-4 py-3 text-sm">{{ user.email }}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    {% if user.adm %}
+                                        <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">Админ</span>
+                                    {% else %}
+                                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Пользователь</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-sm">
+                                    <div class="flex gap-2">
+                                        <form action="/api/admin/set-admin/{{ user.id }}" method="POST" class="inline">
+                                            <button type="submit" class="px-3 py-1 bg-indigo-100 text-indigo-600 rounded-lg text-sm hover:bg-indigo-200 transition">
+                                                {% if user.adm %}Снять права{% else %}Дать права{% endif %}
+                                            </button>
+                                        </form>
+                                        {% if not user.adm %}
+                                        <form action="/api/admin/delete-user/{{ user.id }}" method="POST" class="inline">
+                                            <button type="submit" class="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition" onclick="return confirm('Удалить пользователя {{ user.username }}?')">
+                                                Удалить
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Упражнения -->
+        <div id="exercises-tab" class="tab-content hidden">
+            <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Список упражнений</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">ID</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Название</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Категория</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Сложность</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Длительность</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exercise in exercises %}
+                            <tr class="border-b border-slate-200 hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 text-sm">{{ exercise.id }}</td>
+                                <td class="px-4 py-3 text-sm font-medium">{{ exercise.title }}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    {% if exercise.category == 'cardio' %}
+                                        <span class="px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-medium">Кардио</span>
+                                    {% elif exercise.category == 'strength' %}
+                                        <span class="px-2 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium">Силовая</span>
+                                    {% elif exercise.category == 'yoga' %}
+                                        <span class="px-2 py-1 bg-purple-100 text-purple-600 rounded-full text-xs font-medium">Йога</span>
+                                    {% elif exercise.category == 'stretching' %}
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">Растяжка</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-sm">
+                                    {% if exercise.difficulty == 'beginner' %}Начинающий
+                                    {% elif exercise.difficulty == 'intermediate' %}Средний
+                                    {% elif exercise.difficulty == 'advanced' %}Продвинутый
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-sm">{{ exercise.duration_minutes }} мин</td>
+                                <td class="px-4 py-3 text-sm">
+                                    <form action="/api/admin/delete-exercise/{{ exercise.id }}" method="POST" class="inline">
+                                        <button type="submit" class="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition" onclick="return confirm('Удалить упражнение {{ exercise.title }}?')">
+                                            Удалить
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Добавить упражнение -->
+        <div id="add-exercise-tab" class="tab-content hidden">
+            <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Добавить новое упражнение</h2>
+                
+                <form action="/api/admin/add-exercise" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Название <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required 
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Категория <span class="text-red-500">*</span></label>
+                            <select name="category" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Выберите категорию</option>
+                                <option value="cardio">Кардио</option>
+                                <option value="strength">Силовая</option>
+                                <option value="yoga">Йога</option>
+                                <option value="stretching">Растяжка</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Сложность</label>
+                            <select name="difficulty" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                <option value="beginner">Начинающий</option>
+                                <option value="intermediate">Средний</option>
+                                <option value="advanced">Продвинутый</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Для кого упражнение? <span class="text-red-500">*</span></label>
+                            <select name="sex" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Выберите пол</option>
+                                <option value="male">Мужчины</option>
+                                <option value="female">Женщины</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Длительность (мин) <span class="text-red-500">*</span></label>
+                            <input type="number" name="duration_minutes" required 
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Калории <span class="text-red-500">*</span></label>
+                            <input type="number" name="calories" required 
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Загрузка изображения -->
+                        <div class="">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Загрузить изображение</label>
+                                <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 hover:border-indigo-500 transition cursor-pointer" id="imageDropZone">
+                                    <input type="file" name="image_file" accept="image/*" class="hidden" id="imageInput" onchange="previewImage(this)">
+                                    <div class="text-center">
+                                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <p class="mt-1 text-sm text-slate-600">Нажмите или перетащите изображение</p>
+                                        <p class="text-xs text-slate-400">PNG, JPG, JPEG, GIF, WEBP (макс. 10MB)</p>
+                                    </div>
+                                    <div id="imagePreview" class="mt-2 hidden">
+                                        <img id="previewImg" class="w-32 h-32 object-cover rounded-lg mx-auto">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Или URL изображения -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Или URL изображения</label>
+                                <input type="text" name="image_url" 
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500" 
+                                    placeholder="https://example.com/image.jpg">
+                                <p class="text-xs text-slate-400 mt-1">Укажите URL если не загружаете файл</p>
+                            </div>
+                        </div>
+                        <!-- Загрузка видео -->
+                        <div class="">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Загрузить видео</label>
+                                <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 hover:border-indigo-500 transition cursor-pointer" id="videoDropZone">
+                                    <input type="file" name="video_file" accept="video/*" class="hidden" id="videoInput" onchange="previewVideo(this)">
+                                    <div class="text-center">
+                                        <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <p class="mt-1 text-sm text-slate-600">Нажмите или перетащите видео</p>
+                                        <p class="text-xs text-slate-400">MP4, WEBM, OGG, MOV (макс. 100MB)</p>
+                                    </div>
+                                    <div id="videoPreview" class="mt-2 hidden">
+                                        <video id="previewVideo" controls class="w-full max-h-48 rounded-lg"></video>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Или URL видео -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Или URL видео</label>
+                                <input type="text" name="video_url" 
+                                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500" 
+                                    placeholder="https://example.com/video.mp4">
+                                <p class="text-xs text-slate-400 mt-1">Укажите URL если не загружаете файл</p>
+                            </div>
+                        </div>
+                    </div>   
+                        
+                            
+                    
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Краткое описание</label>
+                        <textarea name="description" rows="2" 
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Подробное описание</label>
+                        <textarea name="detailed_description" rows="3" 
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
+                        ➕ Добавить упражнение
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash сообщения -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed bottom-4 right-4 space-y-2 z-50">
+                {% for category, message in messages %}
+                    <div class="px-4 py-3 rounded-xl shadow-lg max-w-md
+                        {% if category == 'success' %}bg-emerald-100 text-emerald-700 border border-emerald-200
+                        {% elif category == 'error' %}bg-red-100 text-red-700 border border-red-200
+                        {% elif category == 'warning' %}bg-amber-100 text-amber-700 border border-amber-200
+                        {% else %}bg-indigo-100 text-indigo-700 border border-indigo-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        function showTab(tab) {
+            // Скрываем все вкладки
+            document.getElementById('users-tab').classList.add('hidden');
+            document.getElementById('exercises-tab').classList.add('hidden');
+            document.getElementById('add-exercise-tab').classList.add('hidden');
+            
+            // Показываем выбранную
+            if (tab === 'users') {
+                document.getElementById('users-tab').classList.remove('hidden');
+                document.getElementById('tab-users').classList.add('tab-active');
+                document.getElementById('tab-users').classList.remove('bg-white', 'text-indigo-600');
+                document.getElementById('tab-exercises').classList.remove('tab-active');
+                document.getElementById('tab-exercises').classList.add('bg-white', 'text-indigo-600');
+                document.getElementById('tab-add-exercise').classList.remove('tab-active');
+                document.getElementById('tab-add-exercise').classList.add('bg-white', 'text-indigo-600');
+            } else if (tab === 'exercises') {
+                document.getElementById('exercises-tab').classList.remove('hidden');
+                document.getElementById('tab-exercises').classList.add('tab-active');
+                document.getElementById('tab-exercises').classList.remove('bg-white', 'text-indigo-600');
+                document.getElementById('tab-users').classList.remove('tab-active');
+                document.getElementById('tab-users').classList.add('bg-white', 'text-indigo-600');
+                document.getElementById('tab-add-exercise').classList.remove('tab-active');
+                document.getElementById('tab-add-exercise').classList.add('bg-white', 'text-indigo-600');
+            } else if (tab === 'add-exercise') {
+                document.getElementById('add-exercise-tab').classList.remove('hidden');
+                document.getElementById('tab-add-exercise').classList.add('tab-active');
+                document.getElementById('tab-add-exercise').classList.remove('bg-white', 'text-indigo-600');
+                document.getElementById('tab-users').classList.remove('tab-active');
+                document.getElementById('tab-users').classList.add('bg-white', 'text-indigo-600');
+                document.getElementById('tab-exercises').classList.remove('tab-active');
+                document.getElementById('tab-exercises').classList.add('bg-white', 'text-indigo-600');
+            }
+        }
+        
+        // Автоматическое скрытие flash сообщений через 3 секунды
+        setTimeout(() => {
+            const messages = document.querySelectorAll('.fixed.bottom-4.right-4 > div');
+            messages.forEach(msg => {
+                msg.style.opacity = '0';
+                msg.style.transition = 'opacity 0.3s';
+                setTimeout(() => msg.remove(), 300);
+            });
+        }, 3000);
+
+        // Preview image
+    function previewImage(input) {
+        const preview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    // Preview video
+    function previewVideo(input) {
+        const preview = document.getElementById('videoPreview');
+        const previewVideo = document.getElementById('previewVideo');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewVideo.src = e.target.result;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    // Drop zone для изображения
+    const imageDropZone = document.getElementById('imageDropZone');
+    const imageInput = document.getElementById('imageInput');
+    
+    imageDropZone.addEventListener('click', () => imageInput.click());
+    imageDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        imageDropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+    });
+    imageDropZone.addEventListener('dragleave', () => {
+        imageDropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+    });
+    imageDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        imageDropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            imageInput.files = e.dataTransfer.files;
+            previewImage(imageInput);
+        }
+    });
+    
+    // Drop zone для видео
+    const videoDropZone = document.getElementById('videoDropZone');
+    const videoInput = document.getElementById('videoInput');
+    
+    videoDropZone.addEventListener('click', () => videoInput.click());
+    videoDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        videoDropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+    });
+    videoDropZone.addEventListener('dragleave', () => {
+        videoDropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+    });
+    videoDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        videoDropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('video/')) {
+            videoInput.files = e.dataTransfer.files;
+            previewVideo(videoInput);
+        }
+    });        
+    </script>
+</body>
+</html>
