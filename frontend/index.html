@@ -5,64 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FitHub</title>
     <!-- Tailwind + интер -->
+     
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            background: #f4f7fc;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .progress-ring {
-            transition: stroke-dashoffset 0.5s;
-            transform: rotate(-90deg);
-            transform-origin: 50% 50%;
-        }
-        .animate-pulse-slow {
-            animation: pulse 3s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-        }
-    </style>
+    <link rel="stylesheet" href="static/css/style.css">
+    
 </head>
 <body class="min-h-screen">
-
     <!-- Верхняя панель с приветствием и уведомлениями -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <button class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200" onclick="reloadHtml()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                </div>
+                </button>
                 <div>
                     <h1 class="text-2xl font-bold text-slate-800">С возвращением, {{ username }}!</h1>
                     <p class="text-sm text-slate-500">Готовы продолжить тренировки?</p>
                 </div>
             </div>
             <div>
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">Выйти</a>
+                {% if is_admin %}
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 text-white font-semibold rounded-2xl shadow-lg transition">
+                    Админ
+                </a>
+                {% endif %}                
+                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
+                    Выйти
+                </a>
             </div>
-            <div class="flex items-center gap-4">
-                <button class="relative p-2 bg-white rounded-2xl shadow-sm hover:shadow-md transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                </button>
-                <div class="w-11 h-11 bg-slate-300 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
-                    <img src="static/images/profile.png" alt="avatar" class="w-full h-full object-cover">
-                </div>
-            </div>
+            
         </div>
     </div>
+
+    
 
     <!-- Основной контент (сетка дашборда) -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -70,9 +47,58 @@
             
             <!-- Левая колонка (прогресс, активность) -->
             <div class="lg:col-span-2 space-y-6">
+               
+                                <!-- Активные тренировки / план -->
+                <div class="glass-card rounded-3xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
+                        <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <!-- тренировка 1 - Калифорнийский жим штанги -->
+                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                            <!-- Миниатюрная картинка слева -->
+                            <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                                <img src="/static/images/workout/male/Калифорнийский жим штанги.jpg" 
+                                    alt="Калифорнийский жим штанги" 
+                                    class="w-full h-full object-cover">
+                            </div>
+                            <!-- Контент -->
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="font-semibold text-slate-800">Калифорнийский жим штанги</h3>
+                                </div>
+                                <p class="text-xs text-slate-500">45 мин • 320 ккал</p>
+                            </div>
+                            
+                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                        </div>
+
+                        <!-- тренировка 2 - Выпады со штангой -->
+                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                            <!-- Миниатюрная картинка слева -->
+                            <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                                <img src="/static/images/workout/male/Выпады со штангой.jpg" 
+                                    alt="Выпады со штангой" 
+                                    class="w-full h-full object-cover">
+                            </div>
+                            
+                            <!-- Контент -->
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="font-semibold text-slate-800">Выпады со штангой</h3>
+                                </div>
+                                <p class="text-xs text-slate-500">30 мин • 150 ккал</p>
+                            </div>
+                            
+                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Карточка с прогрессом тренировки (кольцо) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-slate-800">Прогресс сегодня</h2>
                         <span class="text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-medium">+5% vs вчера</span>
@@ -119,44 +145,8 @@
                     </div>
                 </div>
 
-                <!-- Активные тренировки / план -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
-                        <a href="#" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
-                    </div>
-                    <div class="space-y-4">
-                        <!-- тренировка 1 -->
-                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
-                            <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl flex items-center justify-center text-white shadow-md">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-slate-800">Кардио + интервалы</h3>
-                                <p class="text-xs text-slate-500">10:30 • 35 мин • 280 ккал</p>
-                            </div>
-                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
-                        </div>
-                        <!-- тренировка 2 -->
-                        <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
-                            <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center text-white shadow-md">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                                </svg>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="font-semibold text-slate-800">Силовая: верх тела</h3>
-                                <p class="text-xs text-slate-500">16:00 • 45 мин • 320 ккал</p>
-                            </div>
-                            <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Последние активности (лента) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
                     <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние достижения</h2>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3 text-sm">
@@ -181,7 +171,7 @@
             <!-- Правая колонка (виджеты) -->
             <div class="space-y-6">
                 <!-- Рекомендация тренировки (персонализированная) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-white">
+                <div class="glass-card rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-white opacity-50">
                     <h2 class="text-lg font-semibold mb-1">🔥 Персонально</h2>
                     <p class="text-sm opacity-90 mb-4">Тренировка на основе ваших последних результатов</p>
                     <div class="bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
@@ -191,45 +181,10 @@
                     <button class="mt-4 w-full py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-white/90 transition shadow-lg">Начать сейчас</button>
                 </div>
 
-                <!-- Пульс / здоровье -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-lg font-semibold text-slate-800">Показатели здоровья</h2>
-                        <span class="text-xs text-slate-400">обновлено 5 мин назад</span>
-                    </div>
-                    <div class="space-y-4">
-                        <div>
-                            <div class="flex justify-between text-sm text-slate-600">
-                                <span>Пульс в покое</span>
-                                <span class="font-semibold">62 уд/мин</span>
-                            </div>
-                            <div class="w-full bg-slate-200 h-2 rounded-full mt-1">
-                                <div class="bg-emerald-400 h-2 rounded-full" style="width: 70%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-sm text-slate-600">
-                                <span>Качество сна</span>
-                                <span class="font-semibold">7ч 42мин</span>
-                            </div>
-                            <div class="w-full bg-slate-200 h-2 rounded-full mt-1">
-                                <div class="bg-indigo-400 h-2 rounded-full" style="width: 85%"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-sm text-slate-600">
-                                <span>Стресс</span>
-                                <span class="font-semibold">Низкий</span>
-                            </div>
-                            <div class="w-full bg-slate-200 h-2 rounded-full mt-1">
-                                <div class="bg-green-400 h-2 rounded-full" style="width: 25%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+         
                 
                 <!-- Быстрое добавление воды -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl flex items-center justify-between">
+                <div class="glass-card rounded-3xl p-6 shadow-xl flex items-center justify-between opacity-50">
                     <div>
                         <h3 class="font-semibold text-slate-800">Стакан воды</h3>
                         <p class="text-sm text-slate-500">+250 мл</p>
@@ -244,33 +199,34 @@
     <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-white/40 shadow-2xl md:relative md:mt-8 md:border-t-0 md:bg-transparent md:backdrop-blur-none md:shadow-none">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div class="flex items-center justify-around md:justify-center md:gap-12">
-                <button class="flex flex-col items-center text-indigo-600">
+                <a href="/main" class="flex flex-col items-center text-indigo-600">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                     <span class="text-xs mt-1 font-medium">Главная</span>
                 </button>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                <a href="/programs" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition" onclick="">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
                     <span class="text-xs mt-1">Тренировки</span>
-                </button>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative">
+                </a>
+                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                     <span class="text-xs mt-1">Аналитика</span>
                 </button>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span class="text-xs mt-1">Профиль</span>
-                </button>
+                </a>
             </div>
         </div>
     </div>
+    
 
     <!-- Всплывающие сообщения -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -301,7 +257,93 @@
             </div>   
         {% endif %}
     {% endwith %} 
+
+    <!-- Модальное окно для заполнения профиля -->
+    {% if first_login %}
+            
+        <div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center visible w-full">
+            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity opacity-100"></div>
+            <!-- Модальное окно -->
+            <div class="relative bg-white rounded-3xl shadow-2xl w-85 max-h-[100vh] overflow-y-auto transform transition-all scale-100 opacity-100">
+                
+                <!-- Заголовок модального окна -->
+                <div class="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800">Давайте знакомиться!</h2>
+                                <p class="text-xs text-slate-500">Заполните данные и система поможет подобрать для вас тренировки</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Форма профиля -->
+                <form action="/api/intro" method="POST" class="p-6 space-y-4">
+                    <!-- Основная информация -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Возраст <span class="text-red-500">*</span></label>
+                        <input type="number" name="age" required min="1" max="120"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Рост (см) <span class="text-red-500">*</span></label>
+                            <input type="number" name="height" required step="0.1" min="100" max="250"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Вес (кг) <span class="text-red-500">*</span></label>
+                            <input type="number" name="weight" required step="0.1" min="20" max="300"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Пол <span class="text-red-500">*</span></label>
+                        <select name="gender" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                            <option value="">Выберите пол</option>
+                            <option value="male">Мужской</option>
+                            <option value="female">Женский</option>
+                        </select>
+                    </div>
+
+                    <!-- Уровень подготовки -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Уровень подготовки <span class="text-red-500">*</span></label>
+                        <select name="fitness_level" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                            <option value="">Выберите уровень</option>
+                            <option value="beginner">Начинающий (нет опыта)</option>
+                            <option value="intermediate">Средний (занимаюсь 1-2 года)</option>
+                            <option value="advanced">Продвинутый (более 2 лет)</option>
+                        </select>
+                    </div>
+                    <input type="hidden" value="{{ username }}" name="user">
+                    <!-- Кнопки -->
+                    <div class="flex gap-4 pt-4 sticky bottom-0 bg-white pb-2">
+                        <button type="submit" 
+                                class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 hover:from-indigo-700 hover:to-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-200 transition transform hover:scale-[1.02] active:scale-[0.98]">
+                            Сохранить
+                        </button>
+                        <button type="button" onclick="closeFirstLogin()"
+                                class="py-4 px-6 bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition">
+                            Закрыть
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
     <!-- плавный отступ снизу для мобильных (чтобы навигация не перекрывала) -->
     <div class="h-20 md:hidden"></div>
+
+    <script src="static/js/script.js"></script>
 </body>
 </html>

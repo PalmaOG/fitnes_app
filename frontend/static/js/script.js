@@ -57,3 +57,15 @@ function closeNotification()
   notification.remove();
 }
 
+// index.html
+function closeFirstLogin() 
+{
+  document.getElementById('profileModal').remove();
+}
+
+function reloadHtml() {
+    document.body.classList.add('reloading');
+     setTimeout(function() {
+        location.reload();
+    }, 500);  
+}
