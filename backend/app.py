@@ -10,7 +10,7 @@ import os
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend/static')
 
 # Конфигурация БД (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fitness.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////data/fitness.db'
 app.secret_key = secrets.token_hex(16)  
 app.config['UPLOAD_FOLDER_IMAGES'] = '../frontend/static/images/workout'
 app.config['UPLOAD_FOLDER_VIDEOS'] = '../frontend/static/videos'
