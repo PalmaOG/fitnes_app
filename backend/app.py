@@ -5,7 +5,11 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash,check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import time
 import os
+from chat import get_program
+import json
+
 
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend/static')
 
@@ -42,6 +46,8 @@ class User(db.Model):
     age = db.Column(db.Integer, nullable=True)
     fitness_level = db.Column(db.String(30), nullable=True)
     first_login = db.Column(db.Boolean, default=True)  # Флаг первого входа
+    program = db.Column(db.Text, nullable=True)
+    goal = db.Column(db.String(30), nullable=True)
     adm = db.Column(db.Boolean, default=False)
 
     
@@ -80,7 +86,54 @@ class Exercise(db.Model):
     
     def __repr__(self):
         return f'<Exercise {self.title}>'
+
+
+def parse_program(program_dict: dict):
+    full_program = {}
+
+    for day, exercise_ids in program_dict.items():
+        full_exercises = []
+        
+        for exercise_id in exercise_ids:
+            # Получаем упражнение из БД
+            exercise = Exercise.query.get(exercise_id)
+            
+            if exercise:
+                # Преобразуем объект Exercise в словарь
+                exercise_dict = {
+                    'id': exercise.id,
+                    'title': exercise.title,
+                    'description': exercise.description or '',
+                    'category': exercise.category,
+                    'difficulty': exercise.difficulty,
+                    'duration_minutes': exercise.duration_minutes,
+                    'calories': exercise.calories,
+                    'image_url': exercise.image_url,
+                    'video_url': exercise.video_url,
+                    'detailed_description': exercise.detailed_description or '',
+                    'sex': exercise.sex
+                }
+                full_exercises.append(exercise_dict)
+            else:
+                # Если упражнение не найдено, добавляем заглушку
+                full_exercises.append({
+                    'id': exercise_id,
+                    'title': 'Упражнение не найдено',
+                    'description': 'Данное упражнение больше недоступно',
+                    'category': 'unknown',
+                    'difficulty': 'beginner',
+                    'duration_minutes': 0,
+                    'calories': 0,
+                    'image_url': '/static/images/default.jpg',
+                    'video_url': None,
+                    'detailed_description': '',
+                    'sex': 'unisex'
+                })
+        
+        full_program[day] = full_exercises
     
+    return full_program
+
 
 # Декоратор для проверки авторизации
 def login_required(f):
@@ -126,10 +179,44 @@ def auth():
 def main():
     user = User.query.get(session['user_id'])
     is_admin = user.is_admin() if user else False
+
+     # Получаем программу пользователя
+    current_exercises = []
+    
+    if user.program:
+        # Преобразуем JSON строку в словарь
+        import json
+        program_dict = json.loads(user.program) if isinstance(user.program, str) else user.program
+        
+        # Получаем упражнения из "Day 1"
+        day1_exercises_ids = program_dict.get("Day 1", [])
+        
+        if day1_exercises_ids:
+            # Получаем полные данные упражнений из БД
+            exercises = Exercise.query.filter(Exercise.id.in_(day1_exercises_ids)).all()
+            
+            # Преобразуем в словари для удобства
+            current_exercises = []
+            for ex in exercises:
+                current_exercises.append({
+                    'id': ex.id,
+                    'title': ex.title,
+                    'description': ex.description,
+                    'category': ex.category,
+                    'difficulty': ex.difficulty,
+                    'duration_minutes': ex.duration_minutes,
+                    'calories': ex.calories,
+                    'image_url': ex.image_url,
+                    'video_url': ex.video_url,
+                    'detailed_description': ex.detailed_description,
+                    'sex': ex.sex
+                })
+
     return render_template('index.html', 
                            username=session.get('username'), 
                            first_login = session.get('first_login'),
-                           is_admin=is_admin)
+                           is_admin=is_admin,
+                           current_exercises = current_exercises)
 
 # Админ панель
 @app.route('/admin')
@@ -458,12 +545,27 @@ def introduction():
         db.session.commit()
         session['first_login'] = False
         flash('Профиль успешно обновлен!', 'success')
-        return redirect(url_for('main'))
+        program = get_program(user_id)
+        user = User.query.get(session['user_id'])
+        if program is None:
+           flash(f'Произошла ошибка при создании программы:', 'error')
+           return redirect(url_for("main"))
+        else:
+            full_program_dict = parse_program(program)
+        is_admin = user.is_admin() if user else False
+        return render_template('index.html', 
+                           username=session.get('username'), 
+                           first_login = session.get('first_login'),
+                           is_admin=is_admin,
+                           program_dict = full_program_dict)
         
     except Exception as e:
         db.session.rollback()
         flash(f'Произошла ошибка при сохранении профиля: {str(e)}', 'error')
         return redirect(url_for('main'))
+
+
+
 
 @app.route('/api/update-profile', methods=['POST'])
 @login_required
@@ -569,4 +671,4 @@ def change_password():
         return redirect(url_for('profile'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

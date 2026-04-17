@@ -38,6 +38,33 @@ def get_user_data_by_email(email: str) -> dict | None:
     except sqlite3.Error as e:
         print(f"Ошибка подключения к базе данных: {e}")
         return None
+    
+def get_user_data_by_id(id: int) -> dict | None:
+
+    if not os.path.exists(DB_PATH):
+        print(f"База данных не найдена по пути {DB_PATH}")
+        return None
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, gender, weight, height, age, fitness_level, program, goal
+            FROM user WHERE id = ?
+        """, (id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            columns = ["id", "username", "gender", "weight", "height", "age",
+                       "fitness_level", "program", "goal"]
+            return dict(zip(columns, row))
+        else:
+            return None
+
+    except sqlite3.Error as e:
+        print(f"Ошибка подключения к базе данных: {e}")
+        return None
 
 
 def get_exercises() -> list[dict]:
@@ -199,6 +226,57 @@ def main():
         print("\nПрограмма успешно сохранена в базе!")
     else:
         print("\nНе удалось сохранить программу в базе.")
+
+
+def get_program(id: int) -> dict | None:
+    user_data = get_user_data_by_id(id)
+
+    if not user_data:
+        print("Пользователь не найден в базе. Программа завершена.")
+        return
+
+    exercises_list = get_exercises()
+    if not exercises_list:
+        print("Упражнения не найдены в базе.")
+        return
+
+    AUTH_KEY = "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
+    SYSTEM_PROMPT = """
+Ты – персональный фитнес-тренер. 
+Подбирай упражнения для пользователя с учетом пола, уровня сложности и цели.
+Выводи только JSON с id упражнений на 30 дней.
+"""
+
+    auth = GigaChatAuth(AUTH_KEY)
+    if not auth.get_new_token():
+        print("Не удалось получить токен")
+        return
+
+    client = GigaChatClient(auth, SYSTEM_PROMPT)
+    result = client.generate_training_program(user_data, exercises_list)
+
+    if "error" in result:
+        print(f"Ошибка: {result['error']}")
+        return
+
+    program_json = json.dumps(result["program"], ensure_ascii=False, indent=4)
+    print("\nПрограмма тренировок на 30 дней (JSON):\n")
+    print(program_json)
+
+
+    tokens = result["tokens"]
+    print("\nСтатистика использования токенов:")
+    print(f"  - Токены запроса (prompt_tokens): {tokens['prompt']}")
+    print(f"  - Токены ответа (completion_tokens): {tokens['completion']}")
+    print(f"  - Всего токенов (total_tokens): {tokens['total']}")
+
+
+    if save_program_to_user(user_data["id"], result["program"]):
+        print("\nПрограмма успешно сохранена в базе!")
+    else:
+        print("\nНе удалось сохранить программу в базе.")
+
+    return result["program"]
 
 
 if __name__ == "__main__":
