@@ -9,7 +9,27 @@ import os
 
 urllib3.disable_warnings()
 
-DB_PATH = "instance/fitness.db"
+_BACKEND_DIR = os.path.dirname(__file__)
+DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
+
+DEFAULT_GIGACHAT_AUTH_KEY = (os.getenv("GIGACHAT_AUTH_KEY") or "").strip() or "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
+DEFAULT_SYSTEM_PROMPT = """
+Ты – персональный фитнес-тренер.
+Подбирай упражнения для пользователя с учетом пола, уровня сложности и цели.
+Выводи только JSON с id упражнений на 30 дней.
+""".strip()
+
+
+def ensure_user_program_column(conn: sqlite3.Connection) -> None:
+    try:
+        cursor = conn.cursor()
+        cursor.execute('PRAGMA table_info("user")')
+        columns = {row[1] for row in cursor.fetchall()}
+        if "program" not in columns:
+            cursor.execute('ALTER TABLE "user" ADD COLUMN program TEXT')
+            conn.commit()
+    except sqlite3.Error as e:
+        print(f"Ошибка обновления схемы БД: {e}")
 
 
 def get_user_data_by_email(email: str) -> dict | None:
@@ -20,6 +40,7 @@ def get_user_data_by_email(email: str) -> dict | None:
 
     try:
         conn = sqlite3.connect(DB_PATH)
+        ensure_user_program_column(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, username, gender, weight, height, age, fitness_level, program, goal
@@ -48,6 +69,7 @@ def get_exercises() -> list[dict]:
 
     try:
         conn = sqlite3.connect(DB_PATH)
+        ensure_user_program_column(conn)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, title, description, category, difficulty, duration_minutes, calories, image_url, video_url, detailed_description, sex
@@ -109,7 +131,7 @@ class GigaChatClient:
         }
 
         try:
-            response = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
+            response = requests.post(url, headers=headers, data=json.dumps(payload), verify=False, timeout=60)
             if response.status_code != 200:
                 return {"error": response.status_code}
 
@@ -140,6 +162,7 @@ def save_program_to_user(user_id: int, program_json: dict) -> bool:
 
     try:
         conn = sqlite3.connect(DB_PATH)
+        ensure_user_program_column(conn)
         cursor = conn.cursor()
         cursor.execute("UPDATE user SET program = ? WHERE id = ?",
                        (json.dumps(program_json, ensure_ascii=False), user_id))
@@ -171,12 +194,12 @@ def main():
 Выводи только JSON с id упражнений на 30 дней.
 """
 
-    auth = GigaChatAuth(AUTH_KEY)
+    auth = GigaChatAuth(DEFAULT_GIGACHAT_AUTH_KEY)
     if not auth.get_new_token():
         print("Не удалось получить токен")
         return
 
-    client = GigaChatClient(auth, SYSTEM_PROMPT)
+    client = GigaChatClient(auth, DEFAULT_SYSTEM_PROMPT)
     result = client.generate_training_program(user_data, exercises_list)
 
     if "error" in result:
