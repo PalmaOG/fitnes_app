@@ -1,0 +1,12 @@
+# Local databases / runtime artifacts
+instance/*.db
+instance/*.sqlite*
+instance/*.db-journal
+instance/*.db-wal
+instance/*.db-shm
+
+backend/instance/*.db
+backend/instance/*.sqlite*
+backend/instance/*.db-journal
+backend/instance/*.db-wal
+backend/instance/*.db-shm
