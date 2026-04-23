@@ -270,6 +270,60 @@
                 gap: 0.75rem;
             }
         }
+
+
+        /* Стили для всплывающей подсказки */
+.tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 250px;
+    background-color: #1e293b;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+    font-weight: normal;
+    white-space: normal;
+    word-wrap: break-word;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.tooltip .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1e293b transparent transparent transparent;
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Для мобильных устройств - показываем подсказку по клику */
+@media (max-width: 640px) {
+    .tooltip .tooltip-text {
+        font-size: 11px;
+        width: 200px;
+        padding: 6px 10px;
+    }
+}
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50">
@@ -459,7 +513,8 @@
                     
                     <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
                         <span class="flex items-center gap-1">⏱️ ${exercise.duration_minutes} мин</span>
-                        <span class="flex items-center gap-1">🔥 ${exercise.calories} ккал</span>
+                        <span class="flex items-center gap-1">🔥 ${exercise.calories} ккал </span>
+                        
                         <span class="flex items-center gap-1">📊 ${difficultyText}</span>
                     </div>
                     
@@ -750,11 +805,18 @@ function changePage(page) {
                                     <p class="font-semibold">${exercise.duration_minutes} мин</p>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 relative group">
                                 <span class="text-2xl">🔥</span>
                                 <div>
                                     <p class="text-xs text-slate-500">Калории</p>
-                                    <p class="font-semibold">${exercise.calories} ккал</p>
+                                    <p class="font-semibold cursor-help relative inline-block">${exercise.calories} ккал
+                                        <span class="tooltip-text absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+                                            Расчеты производились с помощью формулы: MET × 70кг × (${exercise.duration_minutes}мин / 60)
+                                            <br>
+                                            ≈ ${Math.round(exercise.calories)} ккал
+                                            <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+                                        </span>
+                                    </p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
