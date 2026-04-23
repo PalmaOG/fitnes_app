@@ -189,7 +189,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                     <span class="text-xs mt-1 font-medium">Главная</span>
-                </button>
+                </a>
                 <a href="/programs" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -200,7 +200,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
                     </svg>
-                    <span class="text-xs mt-1">Моя тренировка</span>
+                    <span class="text-xs mt-1">Моя программа</span>
                 </a>
                 <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -341,21 +341,50 @@
                 </form>
             </div>
         </div>
-
-        <!-- Лоадер (скрыт по умолчанию) -->
-        <div id="loadingOverlay" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
-            <div class="bg-white rounded-2xl p-8 text-center shadow-2xl">
-                <div class="w-16 h-16 mx-auto mb-4">
-                    <svg class="animate-spin w-full h-full text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-                <p class="text-slate-700 font-semibold mb-2">Подбор тренировок...</p>
-                <p class="text-slate-500 text-sm">Анализируем ваши данные</p>
-            </div>
-        </div>
     {% endif %}
+    <script>
+    // Ждем загрузки страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[action="/api/intro"]');
+        const button = document.getElementById('submitProfileBtn');
+        
+        if (!form || !button) return;
+        
+        // Сохраняем оригинальный HTML кнопки
+        const originalButtonHtml = button.innerHTML;
+        
+        form.addEventListener('submit', function() {
+            // Отключаем кнопку
+            button.disabled = true;
+            
+            // Меняем внешний вид кнопки
+            button.style.opacity = '0.7';
+            button.style.cursor = 'not-allowed';
+            
+            // Добавляем спиннер и меняем текст
+            button.innerHTML = `
+                <svg class="inline w-5 h-5 mr-2 animate-spin" viewBox="0 0 24 24" style="display: inline-block;">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            `;
+            
+            // Кнопка останется в таком состоянии до перезагрузки страницы
+            // (так как форма отправляется на сервер)
+        });
+    });
+</script>
+
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .animate-spin {
+        animation: spin 0.8s linear infinite;
+    }
+</style>
 
 <!-- Форма с подобранной программой упражнений -->   
 {% if program_dict %}

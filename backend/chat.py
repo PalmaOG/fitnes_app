@@ -234,19 +234,11 @@ def main():
         return
 
     program_json = result["program"]
-    print("\nПрограмма тренировок на 30 дней (JSON):\n")
-    print(json.dumps(program_json, ensure_ascii=False, indent=4))
 
-
-    tokens = result["tokens"]
-    print("\nСтатистика использования токенов:")
-    print(f"  - Токены запроса (prompt_tokens): {tokens['prompt']}")
-    print(f"  - Токены ответа (completion_tokens): {tokens['completion']}")
-    print(f"  - Всего токенов (total_tokens): {tokens['total']}")
 
 
     if save_program_to_user(user_data["id"], program_json):
-        print("\nПрограмма успешно сохранена в базе!")
+        pass
     else:
         print("\nНе удалось сохранить программу в базе.")
 
@@ -269,7 +261,7 @@ def get_program(id: int) -> dict | None:
 Подбирай упражнения для пользователя с учетом пола, уровня сложности и цели.
 Выводи только JSON с id упражнений на 30 дней.
 """
-
+ 
     auth = GigaChatAuth(AUTH_KEY)
     if not auth.get_new_token():
         print("Не удалось получить токен")

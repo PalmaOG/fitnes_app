@@ -28,7 +28,6 @@ class GigaChatAuth:
 
             if response.status_code == 200:
                 self.access_token = response.json().get("access_token")
-                print("Токен есть")
                 return True
             else:
                 print(f"Ошибка авторизации: {response.status_code}")

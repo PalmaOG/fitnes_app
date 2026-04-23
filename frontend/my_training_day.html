@@ -72,7 +72,7 @@
                 <div class="mt-5">
                     <h3 class="font-semibold text-slate-800 mb-2">Видео упражнения</h3>
                     <div class="relative">
-                        <video controls playsinline class="w-full rounded-2xl bg-black">
+                        <video autoplay loop muted playsinline class="w-full rounded-2xl bg-black">
                             <source src="{{ exercise.video_url }}" type="video/mp4">
                             Ваш браузер не поддерживает видео.
                         </video>
@@ -105,11 +105,11 @@
                     </svg>
                     <span class="text-xs mt-1">Тренировки</span>
                 </a>
-                <a href="/my-training" class="flex flex-col items-center text-indigo-600">
+                <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
                     </svg>
-                    <span class="text-xs mt-1 font-semibold">Моя тренировка</span>
+                    <span class="text-xs mt-1">Моя программа</span>
                 </a>
                 <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
