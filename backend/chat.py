@@ -10,7 +10,8 @@ import os
 urllib3.disable_warnings()
 
 _BACKEND_DIR = os.path.dirname(__file__)
-DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
+_PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
+DB_PATH = os.path.join(_PROJECT_ROOT, "data", "fitness.db")
 
 DEFAULT_GIGACHAT_AUTH_KEY = (os.getenv("GIGACHAT_AUTH_KEY") or "").strip() or "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
 DEFAULT_SYSTEM_PROMPT = """

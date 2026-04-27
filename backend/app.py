@@ -28,7 +28,8 @@ app.logger.setLevel(logging.INFO)
 
 # Конфигурация БД (SQLite)
 _BACKEND_DIR = os.path.dirname(__file__)
-_DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
+_PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
+_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "fitness.db")
 os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
 _DB_URI_PATH = _DB_PATH.replace(os.sep, "/")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{_DB_URI_PATH}"
