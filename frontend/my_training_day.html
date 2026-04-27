@@ -63,7 +63,14 @@
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-slate-500">Калории</p>
-                            <p class="font-semibold text-slate-800">{{ exercise.calories }} ккал</p>
+                            <p class="font-semibold text-slate-800">{{ exercise.calories }} ккал
+                                <span class="tooltip-text absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+                                            Расчеты производились с помощью формулы: MET × 70кг × (${exercise.duration_minutes}мин / 60)
+                                            <br>
+                                            ≈ ${Math.round(exercise.calories)} ккал
+                                            <span class="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+                                </span>
+                            </p>
                         </div>
                     </div>
                 </div>
