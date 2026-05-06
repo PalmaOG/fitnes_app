@@ -11,7 +11,7 @@ urllib3.disable_warnings()
 
 _BACKEND_DIR = os.path.dirname(__file__)
 _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
-DB_PATH = os.path.join(_PROJECT_ROOT, "data", "fitness.db")
+DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
 
 DEFAULT_GIGACHAT_AUTH_KEY = (os.getenv("GIGACHAT_AUTH_KEY") or "").strip() or "MDE5ZDAwYWMtMGQ3Yi03MGY1LWI3ZDUtNzc2NmY0ZTQxMGI0OmU4ZTczNTcxLTNjNTItNDkwNS1hZjdlLTFlOWYxMDZiYWRhYQ=="
 DEFAULT_SYSTEM_PROMPT = """
@@ -136,6 +136,8 @@ class GigaChatClient:
             "X-Session-ID": str(uuid.uuid4())
         }
 
+        days = user_data.get("days", 30)
+
         prompt = f"""
 На основе данных пользователя:
 {json.dumps(user_data, ensure_ascii=False)}
@@ -143,12 +145,25 @@ class GigaChatClient:
 И базы упражнений:
 {json.dumps(exercises_list, ensure_ascii=False)}
 
-Составь программу тренировок на 30 дней. Выводи **только id упражнений для каждого дня** в формате JSON, например:
+Составь программу тренировок на {days} дней. Выводи **только id упражнений для каждого дня** в формате JSON, например:
 {{
-    "Day 1": [1, 5, 10],
-    "Day 2": [3, 7, 12],
+    "Day 1": [id1, id2, id3],
+    "Day 2": [id1, id2, id3],
     ...
+    "Day {days}": [id1, id2, id3]
 }}
+
+Важные требования:
+1. Создай ровно {days} дней в программе
+2. Если пользователь указывал пол (gender) - учитывай его при выборе упражнений
+3. Учитывай возраст, вес, рост пользователя
+4. Учитывай уровень подготовки (fitness_level)
+5. Учитывай цель тренировок (goal)
+6. На каждый день нужно 1-5 упражнений
+7. Чередуй дни тренировок с днями отдыха (не более 4-5 тренировок в неделю)
+8. Дни отдыха обозначай как: "Day 3": []
+
+Ответь ТОЛЬКО JSON, без пояснений.
 """
 
         payload = {
@@ -166,6 +181,15 @@ class GigaChatClient:
             result = response.json()
             content = result["choices"][0]["message"]["content"]
 
+             # Очищаем ответ от возможных маркеров кода
+            content = content.strip()
+            if content.startswith('```json'):
+                content = content[7:]
+            if content.startswith('```'):
+                content = content[3:]
+            if content.endswith('```'):
+                content = content[:-3]
+            content = content.strip()
 
             try:
                 program_json = json.loads(content)
@@ -276,15 +300,9 @@ def get_program(id: int) -> dict | None:
         return
 
     program_json = json.dumps(result["program"], ensure_ascii=False, indent=4)
-    print("\nПрограмма тренировок на 30 дней (JSON):\n")
-    print(program_json)
-
 
     tokens = result["tokens"]
-    print("\nСтатистика использования токенов:")
-    print(f"  - Токены запроса (prompt_tokens): {tokens['prompt']}")
-    print(f"  - Токены ответа (completion_tokens): {tokens['completion']}")
-    print(f"  - Всего токенов (total_tokens): {tokens['total']}")
+
 
 
     if save_program_to_user(user_data["id"], result["program"]):

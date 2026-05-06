@@ -17,7 +17,7 @@
                     </svg>
                 </a>
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-800">&nbsp; Моя тренировка&nbsp;&nbsp; </h1>
+                    <h1 class="text-2xl font-bold text-slate-800">&nbsp; Моя программа&nbsp;&nbsp; </h1>
 
                 </div>
             </div>
@@ -49,10 +49,33 @@
                 {% endif %}
             {% endwith %}
             <div class="flex justify-center mb-6">
-                <form action="/api/generate-training" method="POST" class="w-full sm:w-auto">
-                    <button type="submit" id="generateTrainingBtn" class="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-emerald-500 hover:from-indigo-700 hover:to-emerald-600 text-white font-semibold rounded-2xl shadow-lg transition transform hover:scale-[1.01] active:scale-[0.99]">
-                    Сгенерировать тренировку
-                    </button>
+                <form action="/api/generate-training" method="POST" class="w-full max-w-md">
+                    <div class="bg-white/40 backdrop-blur-sm rounded-2xl p-5 shadow-lg">
+                        <label class="block text-center mb-4">
+                            <span class="text-slate-700 font-medium">Количество дней тренировок</span>
+                            <span class="ml-2 text-2xl font-bold text-indigo-600" id="daysValue">14</span>
+                        </label>
+                        
+                        <input type="range" 
+                            name="days" 
+                            id="daysRange" 
+                            min="1" 
+                            max="30" 
+                            value="15" 
+                            class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer range-slider">
+                        
+                        <div class="flex justify-between text-xs text-slate-400 mt-2">
+                            <span>1 день</span>
+                            <span>7 дней</span>
+                            <span>14 дней</span>
+                            <span>21 день</span>
+                            <span>30 дней</span>
+                        </div>
+                        
+                        <button type="submit" id="generateTrainingBtn" class="w-full mt-5 px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-emerald-500 hover:from-indigo-700 hover:to-emerald-600 text-white font-semibold rounded-2xl shadow-lg transition transform hover:scale-[1.01] active:scale-[0.99]">
+                            🎯 Сгенерировать программу
+                        </button>
+                    </div>
                 </form>
             </div>
 
@@ -61,14 +84,25 @@
                 <h2 class="text-lg font-semibold text-slate-800 mb-4">Программа тренировок</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {% for day in program %}
-                    <a href="/my-training/day/{{ day.number }}" class="block bg-white/80 border border-white/50 rounded-2xl p-4 shadow-md hover:shadow-lg transition hover:border-indigo-200">
-                        <div class="text-sm font-semibold text-slate-800">{{ day.day }}</div>
-                        <div class="flex flex-wrap gap-2 mt-3">
-                            {% for ex_title in day.exercises %}
-                            <span class="px-2 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-semibold">{{ ex_title }}</span>
-                            {% endfor %}
-                        </div>
-                    </a>
+                        {% if day.exercises %}
+                            <a href="/my-training/day/{{ day.number }}" class="block bg-white/80 border border-white/50 rounded-2xl p-4 shadow-md hover:shadow-lg transition hover:border-indigo-200 cursor-pointer">
+                                <div class="text-sm font-semibold text-slate-800">{{ day.day }}</div>
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    {% for ex_title in day.exercises %}
+                                        <span class="px-2 py-1 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-semibold">{{ ex_title }}</span>
+                                    {% endfor %}
+                                </div>
+                            </a>
+                        {% else %}
+                            <div class="block bg-white/50 border border-white/50 rounded-2xl p-4 shadow-md cursor-default opacity-75">
+                                <div class="text-sm font-semibold">{{ day.day }}</div>
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    <div class="w-full text-center opacity-50 bg-gray-200 rounded-xl py-10">
+                                        <span class="text-slate-500 text-xl font-medium">Отдых</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -78,6 +112,7 @@
         </div>
     </main>
 
+    <!-- Нижняя навигация (таб-бар) -->
     <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-white/40 shadow-2xl md:relative md:mt-8 md:border-t-0 md:bg-transparent md:backdrop-blur-none md:shadow-none">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div class="flex items-center justify-around md:justify-center md:gap-12">
@@ -99,12 +134,6 @@
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="text-xs mt-1">Аналитика</span>
-                </button>
                 <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -114,6 +143,8 @@
             </div>
         </div>
     </div>
+
+
     <script>
     // Ждем загрузки страницы
     document.addEventListener('DOMContentLoaded', function() {
@@ -158,5 +189,105 @@
         animation: spin 0.8s linear infinite;
     }
 </style>
+<style>
+    /* Стилизация ползунка range */
+.range-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, #4f46e5, #10b981);
+    height: 8px;
+    border-radius: 10px;
+    outline: none;
+}
+
+.range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 2px solid #4f46e5;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.range-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: #4f46e5;
+    border-color: white;
+}
+
+.range-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 2px solid #4f46e5;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.range-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    background: #4f46e5;
+    border-color: white;
+}
+
+.range-slider::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+}
+
+/* Для Firefox */
+.range-slider::-moz-range-track {
+    background: linear-gradient(to right, #4f46e5, #10b981);
+    height: 8px;
+    border-radius: 10px;
+}
+
+/* Для IE */
+.range-slider::-ms-track {
+    background: linear-gradient(to right, #4f46e5, #10b981);
+    height: 8px;
+    border-radius: 10px;
+    border: none;
+    color: transparent;
+}
+
+.range-slider::-ms-thumb {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 2px solid #4f46e5;
+    border-radius: 50%;
+    cursor: pointer;
+}
+</style>
+
+<script>
+    // Обновление отображения значения ползунка
+const daysRange = document.getElementById('daysRange');
+const daysValue = document.getElementById('daysValue');
+
+if (daysRange && daysValue) {
+    // Устанавливаем начальное значение
+    daysValue.textContent = daysRange.value;
+    
+    // Обновляем при изменении
+    daysRange.addEventListener('input', function() {
+        daysValue.textContent = this.value;
+        
+        // Анимация при изменении
+        daysValue.style.transform = 'scale(1.2)';
+        daysValue.style.display = 'inline-block';
+        setTimeout(() => {
+            daysValue.style.transform = 'scale(1)';
+        }, 200);
+    });
+}
+</script>
+
 </body>
 </html>

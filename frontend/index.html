@@ -4,20 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FitHub</title>
-    <!-- Tailwind + интер -->
      
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="static/css/style.css">
     
 </head>
 <body class="min-h-screen">
-    <!-- Верхняя панель с приветствием и уведомлениями -->
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <button class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200" onclick="reloadHtml()">
+                <button class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center 
+                    text-white shadow-lg shadow-indigo-200" onclick="reloadHtml()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 
+                            11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                 </button>
                 <div>
@@ -27,11 +28,13 @@
             </div>
             <div>
                 {% if is_admin %}
-                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 text-white font-semibold rounded-2xl shadow-lg transition">
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 
+                    text-white font-semibold rounded-2xl shadow-lg transition">
                     Админ
                 </a>
                 {% endif %}                
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
+                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
+                    text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
                     Выйти
                 </a>
             </div>
@@ -73,7 +76,10 @@
                                         <p class="text-xs text-slate-500">{{ exercise.duration_minutes }} мин • {{ exercise.calories }} ккал</p>
                                     </div>
                                     
-                                    <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                                    <button onclick="showExerciseModal({{ exercise.id }}, '{{ exercise.title|replace("'", "\\'") }}', '{{ exercise.image_url }}', '{{ exercise.video_url or '' }}', '{{ exercise.description|replace("'", "\\'") }}', {{ exercise.duration_minutes }}, {{ exercise.calories }})" 
+        class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">
+    Старт
+                                    </button>
                                 </div>
                             {% endfor %}
                         {% else %}
@@ -83,10 +89,12 @@
                 </div>
                 
                 <!-- Карточка с прогрессом тренировки (кольцо) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
+                <div class="glass-card rounded-3xl p-6 shadow-xl">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Прогресс сегодня</h2>
-                        <span class="text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-medium">+5% vs вчера</span>
+                        <h2 class="text-lg font-semibold text-slate-800">Прогресс программы</h2>
+                        <span class="text-sm {% if progress_percent_change >= 0 %}text-emerald-600 bg-emerald-50{% else %}text-rose-600 bg-rose-50{% endif %} px-3 py-1 rounded-full font-medium">
+                            {% if progress_percent_change >= 0 %}+{% endif %}{{ progress_percent_change }}% vs вчера
+                        </span>
                     </div>
                     <div class="flex flex-col md:flex-row items-center gap-8">
                         <!-- Круговой прогресс (svg) -->
@@ -94,8 +102,11 @@
                             <svg class="w-full h-full" viewBox="0 0 100 100">
                                 <!-- фоновый круг -->
                                 <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="10"/>
-                                <!-- прогресс (75%) -->
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="62.8" class="progress-ring"/>
+                                <!-- прогресс (динамический) -->
+                                {% set dasharray = 251.2 %}
+                                {% set offset = dasharray - (dasharray * program_progress / 100) %}
+                                <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" 
+                                        stroke-dasharray="{{ dasharray }}" stroke-dashoffset="{{ offset }}" class="progress-ring"/>
                                 <defs>
                                     <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                                         <stop offset="0%" stop-color="#6366f1"/>
@@ -104,27 +115,62 @@
                                 </defs>
                             </svg>
                             <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                <span class="text-3xl font-bold text-slate-800">75%</span>
-                                <span class="text-xs text-slate-500">цели</span>
+                                <span class="text-3xl font-bold text-slate-800">{{ program_progress }}%</span>
+                                <span class="text-xs text-slate-500">выполнено</span>
                             </div>
                         </div>
                         <!-- Детали -->
                         <div class="flex-1 grid grid-cols-2 gap-4">
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Сожжено</span>
-                                <p class="text-2xl font-bold text-slate-800">843 <span class="text-sm font-normal text-slate-500">ккал</span></p>
+                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                title="Всего сожжено калорий за сегодня">
+                                <span class="text-sm text-slate-500">Сожжено сегодня</span>
+                                <p class="text-2xl font-bold text-slate-800">{{ total_calories_today }} <span class="text-sm font-normal text-slate-500">ккал</span></p>
                             </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
+                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                title="Общее время тренировок за сегодня">
                                 <span class="text-sm text-slate-500">Длительность</span>
-                                <p class="text-2xl font-bold text-slate-800">64 <span class="text-sm font-normal text-slate-500">мин</span></p>
+                                <p class="text-2xl font-bold text-slate-800">{{ total_duration_today }} <span class="text-sm font-normal text-slate-500">мин</span></p>
+                            </div>
+                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                title="Количество выполненных упражнений за сегодня">
+                                <span class="text-sm text-slate-500">Упражнений</span>
+                                <p class="text-2xl font-bold text-slate-800">{{ total_exercises_today }} <span class="text-sm font-normal text-slate-500">шт</span></p>
                             </div>
                             <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Шаги</span>
-                                <p class="text-2xl font-bold text-slate-800">7.2k <span class="text-sm font-normal text-slate-500">/ 10k</span></p>
+                                <span class="text-sm text-slate-500">Среднее время</span>
+                                <p class="text-2xl font-bold text-slate-800">
+                                    {% if total_exercises_today > 0 %}
+                                        {{ (total_duration_today / total_exercises_today)|round|int }}
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                    <span class="text-sm font-normal text-slate-500">мин/упр</span>
+                                </p>
                             </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Вода</span>
-                                <p class="text-2xl font-bold text-slate-800">4.2 <span class="text-sm font-normal text-slate-500">л</span></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Дополнительная статистика (скрыта по умолчанию, показывается при нажатии) -->
+                    <div class="mt-4 pt-4 border-t border-slate-200">
+                        <button onclick="toggleDetailedStats()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                            <span>Общая статистика</span>
+                            <svg class="h-4 w-4 transition-transform" id="statsArrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        
+                        <div id="detailedStats" class="hidden mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-indigo-50 rounded-xl p-3">
+                                <p class="text-xs text-indigo-600">Всего калорий</p>
+                                <p class="text-lg font-bold text-indigo-700">{{ total_calories_all }} ккал</p>
+                            </div>
+                            <div class="bg-emerald-50 rounded-xl p-3">
+                                <p class="text-xs text-emerald-600">Общее время</p>
+                                <p class="text-lg font-bold text-emerald-700">{{ (total_duration_all // 60) if total_duration_all >= 60 else 0 }} ч {{ total_duration_all % 60 if total_duration_all >= 60 else total_duration_all }} мин</p>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-3">
+                                <p class="text-xs text-purple-600">Всего упражнений</p>
+                                <p class="text-lg font-bold text-purple-700">{{ total_exercises_all }}</p>
                             </div>
                         </div>
                     </div>
@@ -202,12 +248,6 @@
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="text-xs mt-1">Аналитика</span>
-                </button>
                 <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -272,10 +312,10 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Форма профиля с id для перехвата -->
                 <form id="profileForm" action="/api/intro" method="POST" class="p-6 space-y-4">
                     <!-- Основная информация -->
+                     
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-2">Возраст <span class="text-red-500">*</span></label>
                         <input type="number" name="age" required min="1" max="120"
@@ -323,10 +363,11 @@
                             <option value="maintain_weight">Поддержание веса</option>
                             <option value="gain_mass">Набор массы</option>
                         </select>
-                        <p class="text-xs text-slate-400 mt-1">Цель влияет на подбор тренировок и питания.</p>
                     </div>
                     <input type="hidden" value="{{ username }}" name="user">
                     
+                    <p class="px-5 text-slate-400 mt-1">Вы можете вернуться к этому позже в настройках профиля</p>
+
                     <!-- Кнопки -->
                     <div class="flex gap-4 pt-4 sticky bottom-0 bg-white pb-2">
                         <button type="submit" id="submitProfileBtn"
@@ -373,6 +414,342 @@
             // (так как форма отправляется на сервер)
         });
     });
+    
+</script>
+<script>
+    // Глобальная переменная для текущего упражнения
+    let currentExerciseData = null;
+    let workoutTimerInterval = null;
+    let timerSeconds = 0;
+    let isWorkoutRunning = false;
+
+    // Функция показа модального окна с предупреждением
+    function showExerciseModal(id, title, imageUrl, videoUrl, description, duration_minutes, calories) {
+        // Сохраняем данные упражнения
+        currentExerciseData = {
+            id: id,
+            title: title,
+            image_url: imageUrl,
+            video_url: videoUrl,
+            description: description,
+            duration_minutes: duration_minutes,
+            calories: calories
+        };
+
+        // Создаем модальное окно
+        const modalHTML = `
+            <div id="exerciseWarningModal" class="exercise-modal active">
+                <div class="exercise-modal-content">
+                    <!-- Заголовок -->
+                    <div class="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Внимание!</h2>
+                                    <p class="text-xs text-slate-500">Перед началом тренировки</p>
+                                </div>
+                            </div>
+                            <button onclick="closeWarningModal()" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Контент -->
+                    <div class="p-6">
+                        <!-- Предупреждение -->
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                            <div class="flex items-start gap-3">
+                                <svg class="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <div>
+                                    <h3 class="font-semibold text-amber-800">Меры предосторожности</h3>
+                                    <ul class="text-md text-amber-700 mt-2 space-y-1">
+                                        <li>• Перед выполнением обязательно разомнитесь</li>
+                                        <li>• Следите за правильностью техники выполнения</li>
+                                        <li>• При появлении боли или дискомфорта прекратите выполнение</li>
+                                        <li>• Не выполняйте упражнение при наличии противопоказаний</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-2 mb-5">
+                                    <span class="text-sm text-slate-600 text-md">Рекомендуемая длительность:</span>
+                                    <span class="font-bold text-indigo-600">${duration_minutes} минут</span>
+                        </div>
+
+                        
+
+                        <!-- Кнопки -->
+                        <div class="flex gap-3">
+                            <button onclick="startExerciseWithTimer()" class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
+                                ✅ Начать тренировку
+                            </button>
+                            <button onclick="closeWarningModal()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition">
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Удаляем существующее модальное окно если есть
+        const existingModal = document.getElementById('exerciseWarningModal');
+        if (existingModal) existingModal.remove();
+
+        // Добавляем модальное окно на страницу
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    // Функция закрытия модального окна предупреждения
+    function closeWarningModal() {
+        const modal = document.getElementById('exerciseWarningModal');
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        }
+    }
+
+    // Функция начала тренировки с таймером
+    function startExerciseWithTimer() {
+        // Закрываем модальное окно предупреждения
+        closeWarningModal();
+
+        // Создаем модальное окно с таймером
+        const timerModalHTML = `
+            <div id="exerciseTimerModal" class="exercise-modal active">
+                <div class="exercise-modal-content">
+                    <div class="p-6 text-center">
+                        <div class="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-full flex items-center justify-center text-white shadow-lg mb-4">
+                            <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        
+                        <h2 class="text-xl font-bold text-slate-800 mb-2">${currentExerciseData.title}</h2>
+                        <p class="text-slate-500 text-sm mb-6">Выполняйте упражнение</p>
+                        ${currentExerciseData.video_url ? `
+                                <div class="mt-4">
+                                    <video autoplay muted loop class="w-full rounded-xl" poster="${currentExerciseData.image_url}">
+                                        <source src="${currentExerciseData.video_url}" type="video/mp4">
+                                        Ваш браузер не поддерживает видео.
+                                    </video>
+                                </div>
+                                ` : `
+                                <div class="mt-4">
+                                    <img src="${currentExerciseData.image_url}" alt="${currentExerciseData.title}" class="w-full rounded-xl">
+                                </div>
+                                `}
+                        <div class="text-6xl font-mono font-bold text-indigo-600 mb-6" id="timerDisplay">00:00</div>
+                        
+                        <div class="flex gap-4 justify-center">
+                            <button id="pauseTimerBtn" class="px-6 py-3 bg-amber-100 text-amber-700 rounded-xl font-semibold hover:bg-amber-200 transition">
+                                ⏸ Пауза
+                            </button>
+                            <button id="completeWorkoutBtn" class="px-6 py-3 bg-emerald-100 text-emerald-700 rounded-xl font-semibold hover:bg-emerald-200 transition">
+                                ✅ Завершить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', timerModalHTML);
+
+        // Инициализация таймера
+        timerSeconds = 0;
+        isWorkoutRunning = true;
+        updateTimerDisplay();
+
+        // Запускаем интервал
+        if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+        workoutTimerInterval = setInterval(() => {
+            if (isWorkoutRunning) {
+                timerSeconds++;
+                updateTimerDisplay();
+            }
+        }, 1000);
+
+        // Кнопка паузы
+        const pauseBtn = document.getElementById('pauseTimerBtn');
+        pauseBtn.addEventListener('click', () => {
+            isWorkoutRunning = !isWorkoutRunning;
+            pauseBtn.innerHTML = isWorkoutRunning ? '⏸ Пауза' : '▶️ Возобновить';
+            pauseBtn.classList.toggle('bg-amber-100', isWorkoutRunning);
+            pauseBtn.classList.toggle('bg-green-100', !isWorkoutRunning);
+            pauseBtn.classList.toggle('text-amber-700', isWorkoutRunning);
+            pauseBtn.classList.toggle('text-green-700', !isWorkoutRunning);
+        });
+
+        // Кнопка завершения
+        const completeBtn = document.getElementById('completeWorkoutBtn');
+    completeBtn.addEventListener('click', () => {
+        if (confirm('Завершить тренировку?')) {
+            finishWorkout();
+        }
+    });
+}
+
+// Новая функция завершения тренировки с сохранением в БД
+async function finishWorkout() {
+    // Останавливаем таймер
+    if (workoutTimerInterval) {
+        clearInterval(workoutTimerInterval);
+        workoutTimerInterval = null;
+    }
+    
+    // Рассчитываем сожженные калории
+    const plannedSeconds = currentExerciseData.duration_minutes * 60;
+    const caloriesPerSecond = currentExerciseData.calories / plannedSeconds;
+    let caloriesBurned = Math.round(caloriesPerSecond * timerSeconds);
+    
+    // Если калорий слишком мало, ставим минимальное значение
+    if (caloriesBurned < 5 && timerSeconds > 0) {
+        caloriesBurned = Math.round((timerSeconds / plannedSeconds) * currentExerciseData.calories);
+    }
+    
+    // Данные для отправки
+    const statsData = {
+        exercise_id: currentExerciseData.id,
+        duration_seconds: timerSeconds,
+        planned_duration_minutes: currentExerciseData.duration_minutes,
+        calories_burned: caloriesBurned
+    };
+    
+    // Закрываем модальное окно таймера
+    const timerModal = document.getElementById('exerciseTimerModal');
+    if (timerModal) {
+        timerModal.classList.remove('active');
+        setTimeout(() => timerModal.remove(), 300);
+    }
+    
+    // Показываем загрузку
+    showLoadingNotification('Сохранение результатов...');
+    
+    try {
+        // Отправляем статистику на сервер
+        const response = await fetch('/api/save-statistics', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(statsData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Форматируем время
+            const minutes = Math.floor(timerSeconds / 60);
+            const seconds = timerSeconds % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Показываем итоговое сообщение
+            showResultNotification(
+                'success',
+                `🎉 Отличная тренировка!\n\n` +
+                `📋 Упражнение: ${currentExerciseData.title}\n` +
+                `⏱ Время: ${timeString}\n` +
+                `🔥 Сожжено: ${caloriesBurned} ккал`
+            );
+            
+            // Обновляем страницу через 2 секунды
+            setTimeout(() => {
+                location.reload();
+            }, 2500);
+        } else {
+            throw new Error(result.error || 'Не удалось сохранить статистику');
+        }
+        
+    } catch (error) {
+        console.error('Ошибка при сохранении:', error);
+        showResultNotification(
+            'error',
+            `❌ Ошибка при сохранении результатов\n\n` +
+            `Упражнение выполнено, но данные не сохранены.\n` +
+            `Время: ${Math.floor(timerSeconds / 60)}:${(timerSeconds % 60).toString().padStart(2, '0')}\n` +
+            `Калории: ~${caloriesBurned} ккал`
+        );
+        
+        setTimeout(() => {
+            location.reload();
+        }, 3000);
+    }
+}
+
+// Функция отображения уведомления о загрузке
+function showLoadingNotification(message) {
+    const notification = document.createElement('div');
+    notification.id = 'loadingNotification';
+    notification.className = 'fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg bg-indigo-100 text-indigo-700 border border-indigo-200';
+    notification.innerHTML = `
+        <div class="flex items-center gap-3">
+            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(notification);
+}
+
+// Функция отображения результата
+function showResultNotification(type, message) {
+    // Удаляем уведомление о загрузке
+    const loadingNotif = document.getElementById('loadingNotification');
+    if (loadingNotif) loadingNotif.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = `fixed bottom-4 right-4 z-50 px-5 py-4 rounded-xl shadow-lg max-w-sm whitespace-pre-line ${
+        type === 'success' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'
+    }`;
+    notification.innerHTML = `<div class="flex items-start gap-3">${message.replace(/\n/g, '<br>')}</div>`;
+    document.body.appendChild(notification);
+    
+    // Удаляем через 2.5 секунды
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 2500);
+}
+
+    // Функция обновления отображения таймера
+    function updateTimerDisplay() {
+        const minutes = Math.floor(timerSeconds / 60);
+        const seconds = timerSeconds % 60;
+        const timerElement = document.getElementById('timerDisplay');
+        if (timerElement) {
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // Функция закрытия модального окна таймера
+    function closeTimerModal() {
+        const modal = document.getElementById('exerciseTimerModal');
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        }
+        if (workoutTimerInterval) {
+            clearInterval(workoutTimerInterval);
+            workoutTimerInterval = null;
+        }
+    }
+
+    // Функция для экранирования кавычек в строке
+    function escapeJsString(str) {
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    }
 </script>
 
 <style>
@@ -384,6 +761,75 @@
     .animate-spin {
         animation: spin 0.8s linear infinite;
     }
+    /* Модальное окно для упражнения */
+.exercise-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.exercise-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.exercise-modal-content {
+    background: white;
+    border-radius: 2rem;
+    max-width: 90%;
+    width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: scale(0.7);
+    transition: all 0.3s ease;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.exercise-modal.active .exercise-modal-content {
+    transform: scale(1);
+}
+
+/* Для мобильных устройств - на весь экран */
+@media (max-width: 768px) {
+    .exercise-modal {
+        align-items: flex-end;
+    }
+    
+    .exercise-modal-content {
+        max-width: 100%;
+        width: 100%;
+        max-height: 100vh;
+        height: 100vh;
+        border-radius: 0;
+        border-top-left-radius: 2rem;
+        border-top-right-radius: 2rem;
+        transform: translateY(100%);
+    }
+    
+    .exercise-modal.active .exercise-modal-content {
+        transform: translateY(0);
+    }
+}
+
+/* Для планшетов */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .exercise-modal-content {
+        max-width: 80%;
+        width: 600px;
+        max-height: 80vh;
+    }
+}
 </style>
 
 <!-- Форма с подобранной программой упражнений -->   
@@ -504,6 +950,20 @@
     }
 </script>
 {% endif %}
+<script>
+    function toggleDetailedStats() {
+    const detailedStats = document.getElementById('detailedStats');
+    const arrow = document.getElementById('statsArrow');
+    
+    if (detailedStats.classList.contains('hidden')) {
+        detailedStats.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        detailedStats.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+</script>
     <!-- плавный отступ снизу для мобильных (чтобы навигация не перекрывала) -->
     <div class="h-20 md:hidden"></div>
 

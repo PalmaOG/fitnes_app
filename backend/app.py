@@ -4,11 +4,10 @@ import secrets
 import json
 from flask import Flask, flash, jsonify, redirect,render_template, request, url_for, session
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash,check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
-import time
+from datetime import datetime, timedelta
 import os
 from chat import get_program
 import json
@@ -19,28 +18,27 @@ from chat import GigaChatClient
 
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend/static')
 
-# Настраиваем логгирование
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
 )
 app.logger.setLevel(logging.INFO)
 
-# Конфигурация БД (SQLite)
 _BACKEND_DIR = os.path.dirname(__file__)
 _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
-_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "fitness.db")
+_DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
 os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
 _DB_URI_PATH = _DB_PATH.replace(os.sep, "/")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{_DB_URI_PATH}"
 app.secret_key = secrets.token_hex(16)  
 app.config['UPLOAD_FOLDER_IMAGES'] = '../frontend/static/images/workout'
 app.config['UPLOAD_FOLDER_VIDEOS'] = '../frontend/static/videos'
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 app.config['ALLOWED_EXTENSIONS_IMAGES'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['ALLOWED_EXTENSIONS_VIDEOS'] = {'mp4', 'webm', 'ogg', 'mov'}
 
-# Создаем папки, если их нет
+
 os.makedirs(app.config['UPLOAD_FOLDER_IMAGES'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_VIDEOS'], exist_ok=True)
 
@@ -48,7 +46,7 @@ def allowed_file(filename, allowed_extensions):
     """Проверка разрешенного расширения файла"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-# Инициализируем БД
+
 db = SQLAlchemy(app)
 
 GOAL_CANONICAL_MAP = {
@@ -109,13 +107,13 @@ class User(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.today)
     gender = db.Column(db.String(20), nullable=True)
-    weight = db.Column(db.Float, nullable=True)  # в кг
-    height = db.Column(db.Float, nullable=True)  # в см
+    weight = db.Column(db.Float, nullable=True)  
+    height = db.Column(db.Float, nullable=True)  
     age = db.Column(db.Integer, nullable=True)
     fitness_level = db.Column(db.String(30), nullable=True)
     goal = db.Column(db.String(40), nullable=True)
     program = db.Column(db.Text, nullable=True)
-    first_login = db.Column(db.Boolean, default=True)  # Флаг первого входа
+    first_login = db.Column(db.Boolean, default=True)  
     program = db.Column(db.Text, nullable=True)
     goal = db.Column(db.String(30), nullable=True)
     adm = db.Column(db.Boolean, default=False)
@@ -135,27 +133,63 @@ class Exercise(db.Model):
     __tablename__ = 'exercises'
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)  # Название упражнения
-    description = db.Column(db.Text, nullable=True)    # Описание
-    category = db.Column(db.String(50), nullable=False)  # cardio, strength, yoga, stretching
-    difficulty = db.Column(db.String(20), default='beginner')  # beginner, intermediate, advanced
+    title = db.Column(db.String(200), nullable=False)  
+    description = db.Column(db.Text, nullable=True)    
+    category = db.Column(db.String(50), nullable=False)  
+    difficulty = db.Column(db.String(20), default='beginner')  
     
-    # Длительность и калории
-    duration_minutes = db.Column(db.Integer, nullable=False)  # Длительность в минутах
-    calories = db.Column(db.Integer, nullable=False)  # Сжигаемые калории
+    duration_minutes = db.Column(db.Integer, nullable=False)  
+    calories = db.Column(db.Integer, nullable=False)  
     
-    # Изображения и видео
-    image_url = db.Column(db.String(500), nullable=False)  # Путь к изображению
-    video_url = db.Column(db.String(500), nullable=True)   # Путь к видео
+    image_url = db.Column(db.String(500), nullable=False)  
+    video_url = db.Column(db.String(500), nullable=True)   
     
-    # Детальная информация для модального окна
-    detailed_description = db.Column(db.Text, nullable=True)  # Подробное описание
+    detailed_description = db.Column(db.Text, nullable=True)  
 
     sex = db.Column(db.String(10), nullable=False)
     
     
     def __repr__(self):
         return f'<Exercise {self.title}>'
+
+# Модель статистики
+class Statistics(db.Model):
+    __tablename__ = 'statistics'    
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    
+    duration_seconds = db.Column(db.Integer, nullable=False)  
+    calories_burned = db.Column(db.Integer, nullable=False)  
+    
+    completed = db.Column(db.Boolean, default=True) 
+
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='statistics')
+    exercise = db.relationship('Exercise', backref='statistics')
+    
+    def __repr__(self):
+        return f'<Statistics {self.user_id} - {self.exercise_id}>'
+    
+
+class FavoriteExercise(db.Model):
+    __tablename__ = 'favorite_exercises'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Связи
+    user = db.relationship('User', backref='favorites')
+    exercise = db.relationship('Exercise', backref='favorited_by')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'exercise_id', name='unique_user_exercise_favorite'),)
+    
+    def __repr__(self):
+        return f'<FavoriteExercise user={self.user_id} exercise={self.exercise_id}>'
 
 
 def parse_program(program_dict: dict):
@@ -205,7 +239,6 @@ def parse_program(program_dict: dict):
     return full_program
 
 
-# Декоратор для проверки авторизации
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -306,13 +339,86 @@ def main():
                     'sex': ex.sex
                 })
 
-    return render_template('index.html', 
-                           username=session.get('username'), 
-                           first_login = session.get('first_login'),
-                           is_admin=is_admin,
-                           current_exercises = current_exercises)
+    if user.first_login == 1:
+        first_login = True
+        user.first_login = False
+        db.session.commit()
+        db.session.close()
+    else:
+        first_login = False
 
-# Админ панель
+    # Получаем сегодняшнюю дату
+    today = datetime.utcnow().date()
+    today_start = datetime(today.year, today.month, today.day)
+    
+    # Статистика за сегодня
+    today_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= today_start
+    ).all()
+    
+    # Общая статистика за все время
+    all_stats = Statistics.query.filter_by(user_id=user.id).all()
+    
+    # Рассчитываем показатели
+    total_calories_today = sum(stat.calories_burned for stat in today_stats)
+    total_duration_today = sum(stat.duration_seconds for stat in today_stats) // 60  # в минутах
+    total_exercises_today = len(today_stats)
+    
+    total_calories_all = sum(stat.calories_burned for stat in all_stats)
+    total_duration_all = sum(stat.duration_seconds for stat in all_stats) // 60  # в минутах
+    total_exercises_all = len(all_stats)
+    
+    # Прогресс программы (процент выполнения)
+    program_progress = 0
+    if user.program:
+        program_dict = json.loads(user.program) if isinstance(user.program, str) else user.program
+        total_planned_exercises = 0
+        for day, exercises_ids in program_dict.items():
+            total_planned_exercises += len(exercises_ids)
+        
+        if total_planned_exercises > 0:
+            program_progress = round((total_exercises_all / total_planned_exercises) * 100)
+            if program_progress > 100:
+                program_progress = 100
+    
+    # Сравнение с предыдущим днем
+    yesterday_start = today_start - timedelta(days=1)
+    yesterday_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= yesterday_start,
+        Statistics.completed_at < today_start
+    ).all()
+    
+    yesterday_calories = sum(stat.calories_burned for stat in yesterday_stats)
+    yesterday_duration = sum(stat.duration_seconds for stat in yesterday_stats) // 60
+    
+    # Процент изменения
+    progress_percent_change = 0
+    if yesterday_calories > 0:
+        progress_percent_change = round(((total_calories_today - yesterday_calories) / yesterday_calories) * 100)
+
+
+
+        
+    return render_template('index.html', 
+                         username=session.get('username'), 
+                         first_login=session.get('first_login'),
+                         is_admin=is_admin,
+                         current_exercises=current_exercises,
+                         
+                         total_calories_today=total_calories_today,
+                         total_duration_today=total_duration_today,
+                         total_exercises_today=total_exercises_today,
+                        
+                         total_calories_all=total_calories_all,
+                         total_duration_all=total_duration_all,
+                         total_exercises_all=total_exercises_all,
+                         
+                         program_progress=program_progress,
+                         progress_percent_change=progress_percent_change)
+
+
 @app.route('/admin')
 @login_required
 @admin_required
@@ -485,6 +591,16 @@ def generate_training():
     if not DEFAULT_GIGACHAT_AUTH_KEY:
         flash('Не настроен ключ доступа GigaChat (GIGACHAT_AUTH_KEY)', 'error')
         return redirect(url_for('my_training'))
+    
+    days = request.form.get('days', 30)  
+    try:
+        days = int(days)
+        if days < 1:
+            days = 1
+        if days > 30:
+            days = 30
+    except (ValueError, TypeError):
+        days = 14
 
     try:
         exercises = Exercise.query.all()
@@ -516,6 +632,7 @@ def generate_training():
             "fitness_level": user.fitness_level,
             "program": None,
             "goal": user.goal,
+            "days": days
         }
 
         auth = GigaChatAuth(DEFAULT_GIGACHAT_AUTH_KEY)
@@ -533,6 +650,11 @@ def generate_training():
         if isinstance(program_json, dict) and "error" in program_json:
             flash("Ошибка генерации: не удалось распарсить JSON из ответа", 'error')
             return redirect(url_for('my_training'))
+        
+        # Проверяем, что количество дней соответствует запрошенному
+        actual_days = len(program_json)
+        if actual_days != days:
+            app.logger.warning(f"Запрошено {days} дней, получено {actual_days}")
 
         user.program = json.dumps(program_json, ensure_ascii=False)
         db.session.commit()
@@ -549,9 +671,25 @@ def generate_training():
 @login_required
 def profile():
     user = db.session.get(User, session['user_id'])
+     # Получаем избранные упражнения пользователя
+    favorites = FavoriteExercise.query.filter_by(user_id=user.id).all()
+    favorite_exercises = [fav.exercise for fav in favorites]
+
+     # Общая статистика за все время
+    all_stats = Statistics.query.filter_by(user_id=user.id).all()
+    
+    total_workouts = len(all_stats)  # Всего тренировок
+    total_calories = sum(stat.calories_burned for stat in all_stats)  # Всего калорий
+    total_seconds = sum(stat.duration_seconds for stat in all_stats)  # Всего секунд
+    total_minutes = total_seconds // 60  # Всего минут
+
     return render_template('profile.html', 
                          username=session.get('username'),
-                         user=user)
+                         user=user,
+                         favorite_exercises=favorite_exercises,
+                         total_workouts=total_workouts,
+                         total_calories=total_calories,
+                         total_minutes=total_minutes)
 
 #Маршруты сервера
 @app.route('/api/admin/set-admin/<int:user_id>', methods=['POST'])
@@ -855,11 +993,11 @@ def introduction():
         else:
             full_program_dict = parse_program(program)
         is_admin = user.is_admin() if user else False
-        return render_template('index.html', 
+        return redirect(url_for("main",
                            username=session.get('username'), 
                            first_login = session.get('first_login'),
                            is_admin=is_admin,
-                           program_dict = full_program_dict)
+                           program_dict = full_program_dict))
         
     except Exception as e:
         db.session.rollback()
@@ -987,6 +1125,129 @@ def change_password():
         db.session.rollback()
         flash(f'Произошла ошибка: {str(e)}', 'error')
         return redirect(url_for('profile'))
+    
+
+@app.route('/api/save-statistics', methods=['POST'])
+@login_required
+def save_statistics():
+    try:
+        data = request.get_json()
+        
+        user_id = session.get('user_id')
+        exercise_id = data.get('exercise_id')
+        duration_seconds = data.get('duration_seconds')
+        calories_burned = data.get('calories_burned')
+
+        
+        # Валидация
+        if not all([exercise_id, duration_seconds]):
+            return jsonify({'success': False, 'error': 'Недостаточно данных'}), 400
+        
+        # Создаем запись статистики
+        stats = Statistics(
+            user_id=user_id,
+            exercise_id=exercise_id,
+            duration_seconds=duration_seconds,
+            calories_burned=calories_burned,
+            completed=True,
+            completed_at=datetime.utcnow()
+        )
+        
+
+        db.session.add(stats)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Статистика сохранена'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+@app.route('/api/favorite/toggle', methods=['POST'])
+@login_required
+def toggle_favorite():
+    """Добавить или удалить упражнение из избранного"""
+    try:
+        data = request.get_json()
+        exercise_id = data.get('exercise_id')
+        
+        if not exercise_id:
+            return jsonify({'success': False, 'error': 'ID упражнения не указан'}), 400
+        
+        user_id = session.get('user_id')
+        
+        # Проверяем, есть ли уже в избранном
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        if favorite:
+            # Удаляем из избранного
+            db.session.delete(favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'removed',
+                'message': 'Упражнение удалено из избранного'
+            })
+        else:
+            # Добавляем в избранное
+            new_favorite = FavoriteExercise(
+                user_id=user_id,
+                exercise_id=exercise_id
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'added',
+                'message': 'Упражнение добавлено в избранное'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorites', methods=['GET'])
+@login_required
+def get_favorites():
+    """Получить список избранных упражнений пользователя"""
+    try:
+        user_id = session.get('user_id')
+        favorites = FavoriteExercise.query.filter_by(user_id=user_id).all()
+        
+        favorite_ids = [fav.exercise_id for fav in favorites]
+        
+        return jsonify({
+            'success': True,
+            'favorites': favorite_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorite/status/<int:exercise_id>', methods=['GET'])
+@login_required
+def get_favorite_status(exercise_id):
+    """Проверить, добавлено ли упражнение в избранное"""
+    try:
+        user_id = session.get('user_id')
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        return jsonify({
+            'success': True,
+            'is_favorite': favorite is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def ensure_goal_column():
@@ -1009,4 +1270,4 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',port=80)
+    app.run(debug=True)
