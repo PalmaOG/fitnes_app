@@ -3,468 +3,443 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitHub</title>
-    <!-- Tailwind + интер -->
-     
+    <title>FitHub — Главная</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="static/css/style.css">
-    
 </head>
 <body class="min-h-screen">
-    <!-- Верхняя панель с приветствием и уведомлениями -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <button class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200" onclick="reloadHtml()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
+
+<!-- Верхняя панель -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200" onclick="location.reload()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">С возвращением, {{ username }}!</h1>
+                <p class="text-sm text-slate-500">Готовы продолжить тренировки?</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            {% if is_admin %}
+            <a href="/admin" class="px-4 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 text-white font-semibold rounded-2xl shadow-lg transition">
+                Админ
+            </a>
+            {% endif %}
+            <a href="/api/logout" class="px-4 py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg transition">
+                Выйти
+            </a>
+        </div>
+    </div>
+</div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div id="incompleteAlert"></div>
+</div>
+<!-- Основной контент -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Левая колонка -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- 📅 Виджет календаря -->
+            <div class="glass-card rounded-3xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <!-- Иконка календаря -->
+                        <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-md border border-slate-100">
+                            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none">
+                                <rect x="3" y="4" width="18" height="17" rx="2" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+                                <path d="M3 8h18" stroke="#e2e8f0" stroke-width="1.5"/>
+                                <rect x="8" y="2" width="2" height="4" rx="1" fill="#6366f1"/>
+                                <rect x="14" y="2" width="2" height="4" rx="1" fill="#6366f1"/>
+                                <path d="M8 13h2v2H8zM11 13h2v2h-2zM14 13h2v2h-2zM8 16h2v2H8zM11 16h2v2h-2z" fill="#10b981"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-semibold text-slate-800">Календарь тренировок</h2>
+                            <p class="text-xs text-slate-400" id="currentMonthLabel">Загрузка...</p>
+                        </div>
+                    </div>
+                    <!-- Навигация по месяцам -->
+                    <div class="flex items-center gap-1">
+                        <button onclick="changeMonth(-1)"
+                                class="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition text-sm">
+                            ‹
+                        </button>
+                        <button onclick="changeMonth(1)"
+                                class="w-7 h-7 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition text-sm">
+                            ›
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Статус подключения -->
+                <div id="calendarConnectionStatus" class="mb-3"></div>
+
+                <!-- Сетка календаря -->
+                <div class="calendar-widget">
+                    <!-- Дни недели -->
+                    <div class="grid grid-cols-7 gap-1 mb-2">
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Пн</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Вт</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Ср</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Чт</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Пт</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Сб</div>
+                        <div class="text-center text-xs font-medium text-slate-400 py-1">Вс</div>
+                    </div>
+
+                    <!-- Дни месяца (заполнится JS) -->
+                    <div id="calendarDays" class="grid grid-cols-7 gap-1">
+                        <!-- Скелетон загрузки -->
+                        <div class="aspect-square bg-slate-50 rounded-lg animate-pulse" style="grid-column: span 7; height: 200px;"></div>
+                    </div>
+                </div>
+
+                <!-- Легенда -->
+                <div class="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-slate-100 flex-wrap">
+                    <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                        <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                        <span>Тренировка</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                        <span>Google Calendar</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-slate-500">
+                        <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
+                        <span>Сегодня</span>
+                    </div>
+                </div>
+
+                <!-- Детали события -->
+                <div id="eventDetails" class="hidden mt-4 p-4 bg-gradient-to-br from-indigo-50 to-emerald-50 rounded-xl border border-indigo-100">
+                    <div class="flex items-start justify-between mb-3">
+                        <div>
+                            <h4 class="font-semibold text-indigo-900 text-sm" id="eventTitle">Событие</h4>
+                            <p class="text-xs text-indigo-600 mt-1" id="eventDate">Дата</p>
+                        </div>
+                        <button onclick="closeEventDetails()" class="text-indigo-400 hover:text-indigo-600 text-xl leading-none font-bold">×</button>
+                    </div>
+
+                    <!-- Список упражнений -->
+                    <div id="exercisesList" class="space-y-2 mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Сегодняшний план -->
+            <div class="glass-card rounded-3xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">План дня</h2>
+                    <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
+                </div>
+                <div class="space-y-4">
+                    {% if current_exercises %}
+                    {% for exercise in current_exercises %}
+                    <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                        <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                            <img src="{{ exercise.image_url }}" alt="{{ exercise.title }}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-slate-800">{{ exercise.title }}</h3>
+                            <p class="text-xs text-slate-500">{{ exercise.duration_minutes }} мин • {{ exercise.calories }} ккал</p>
+                        </div>
+                        <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-8">
+                        <p class="text-slate-400 text-sm mb-3">Нет упражнений на сегодня</p>
+                        <a href="/my-training" class="inline-block text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                            Сгенерировать программу →
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Прогресс -->
+            <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-slate-800">Прогресс сегодня</h2>
+                    <span class="text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-medium">+5% vs вчера</span>
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-8">
+                    <div class="relative w-36 h-36">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="10"/>
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="62.8" class="progress-ring"/>
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#6366f1"/>
+                                    <stop offset="100%" stop-color="#10b981"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col">
+                            <span class="text-3xl font-bold text-slate-800">75%</span>
+                            <span class="text-xs text-slate-500">цели</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 grid grid-cols-2 gap-4">
+                        <div class="bg-white/60 rounded-2xl p-4">
+                            <span class="text-sm text-slate-500">Сожжено</span>
+                            <p class="text-2xl font-bold text-slate-800">843 <span class="text-sm font-normal text-slate-500">ккал</span></p>
+                        </div>
+                        <div class="bg-white/60 rounded-2xl p-4">
+                            <span class="text-sm text-slate-500">Длительность</span>
+                            <p class="text-2xl font-bold text-slate-800">64 <span class="text-sm font-normal text-slate-500">мин</span></p>
+                        </div>
+                        <div class="bg-white/60 rounded-2xl p-4">
+                            <span class="text-sm text-slate-500">Шаги</span>
+                            <p class="text-2xl font-bold text-slate-800">7.2k <span class="text-sm font-normal text-slate-500">/ 10k</span></p>
+                        </div>
+                        <div class="bg-white/60 rounded-2xl p-4">
+                            <span class="text-sm text-slate-500">Вода</span>
+                            <p class="text-2xl font-bold text-slate-800">4.2 <span class="text-sm font-normal text-slate-500">л</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Достижения -->
+            <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
+                <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние достижения</h2>
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">🏆</div>
+                        <span class="text-slate-600">Новый рекорд: планка 3:45 мин</span>
+                        <span class="ml-auto text-xs text-slate-400">2ч назад</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">⭐</div>
+                        <span class="text-slate-600">Выполнено 5/7 тренировок на неделе</span>
+                        <span class="ml-auto text-xs text-slate-400">вчера</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">🔥</div>
+                        <span class="text-slate-600">Серия тренировок: 12 дней</span>
+                        <span class="ml-auto text-xs text-slate-400">вчера</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка -->
+        <div class="space-y-6">
+            <div class="glass-card rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-white opacity-50">
+                <h2 class="text-lg font-semibold mb-1">🔥 Персонально</h2>
+                <p class="text-sm opacity-90 mb-4">Тренировка на основе ваших последних результатов</p>
+                <div class="bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
+                    <p class="font-medium">Йога для восстановления</p>
+                    <p class="text-xs opacity-80 mt-1">20 мин • растяжка</p>
+                </div>
+                <button class="mt-4 w-full py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-white/90 transition shadow-lg">Начать сейчас</button>
+            </div>
+
+            <div class="glass-card rounded-3xl p-6 shadow-xl flex items-center justify-between opacity-50">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-800">С возвращением, {{ username }}!</h1>
-                    <p class="text-sm text-slate-500">Готовы продолжить тренировки?</p>
+                    <h3 class="font-semibold text-slate-800">Стакан воды</h3>
+                    <p class="text-sm text-slate-500">+250 мл</p>
+                </div>
+                <button class="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl hover:bg-emerald-200 transition">+</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Нижняя навигация -->
+<div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-white/40 shadow-2xl md:relative md:mt-8 md:border-t-0 md:bg-transparent md:backdrop-blur-none md:shadow-none">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div class="flex items-center justify-around md:justify-center md:gap-12">
+            <a href="/main" class="flex flex-col items-center text-indigo-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span class="text-xs mt-1 font-medium">Главная</span>
+            </a>
+            <a href="/programs" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                <span class="text-xs mt-1">Тренировки</span>
+            </a>
+            <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span class="text-xs mt-1">Моя программа</span>
+            </a>
+            <button class="flex flex-col items-center text-slate-400 opacity-50" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span class="text-xs mt-1">Аналитика</span>
+            </button>
+            <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span class="text-xs mt-1">Профиль</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Flash-сообщения -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="fixed bottom-20 left-0 right-0 flex flex-col items-center z-50 px-4 gap-2 pointer-events-none">
+    {% for category, message in messages %}
+    <div id="notification-{{ loop.index }}"
+         onclick="this.remove()"
+         class="cursor-pointer pointer-events-auto max-w-md w-full px-4 py-3 rounded-2xl shadow-lg text-sm font-medium
+         {% if category == 'success' %}bg-emerald-100 border border-emerald-300 text-emerald-800
+         {% elif category == 'warning' %}bg-amber-100 border border-amber-300 text-amber-800
+         {% elif category == 'error' %}bg-red-100 border border-red-300 text-red-800
+         {% else %}bg-indigo-100 border border-indigo-300 text-indigo-800{% endif %}">
+        {% if category == 'success' %}✅{% elif category == 'warning' %}⚠️{% elif category == 'error' %}❌{% else %}ℹ️{% endif %}
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+<script>
+    setTimeout(function() {
+        document.querySelectorAll('[id^="notification-"]').forEach(function(el) {
+            el.style.transition = 'opacity 0.5s';
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        });
+    }, 4000);
+</script>
+{% endif %}
+{% endwith %}
+
+<!-- Модалка первого входа -->
+{% if first_login %}
+<div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] overflow-y-auto mx-4">
+        <div class="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl z-10">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Давайте знакомиться!</h2>
+                    <p class="text-xs text-slate-500">Заполните данные для подбора тренировок</p>
+                </div>
+            </div>
+        </div>
+
+        <form id="profileForm" action="/api/intro" method="POST" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Возраст <span class="text-red-500">*</span></label>
+                <input type="number" name="age" required min="1" max="120"
+                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Рост (см) <span class="text-red-500">*</span></label>
+                    <input type="number" name="height" required step="0.1" min="100" max="250"
+                           class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Вес (кг) <span class="text-red-500">*</span></label>
+                    <input type="number" name="weight" required step="0.1" min="20" max="300"
+                           class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
                 </div>
             </div>
             <div>
-                {% if is_admin %}
-                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 text-white font-semibold rounded-2xl shadow-lg transition">
-                    Админ
-                </a>
-                {% endif %}                
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
-                    Выйти
-                </a>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Пол <span class="text-red-500">*</span></label>
+                <select name="gender" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    <option value="">Выберите пол</option>
+                    <option value="male">Мужской</option>
+                    <option value="female">Женский</option>
+                </select>
             </div>
-            
-        </div>
-    </div>
-
-    
-
-    <!-- Основной контент (сетка дашборда) -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Левая колонка (прогресс, активность) -->
-            <div class="lg:col-span-2 space-y-6">
-               
-                                <!-- Активные тренировки / план -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
-                        <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        {% if current_exercises %}
-                            {% for exercise in current_exercises %}
-                                <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
-                                    <!-- Миниатюрная картинка слева -->
-                                    <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
-                                        <img src="{{ exercise.image_url }}" 
-                                            alt="{{ exercise.title }}" 
-                                            class="w-full h-full object-cover">
-                                    </div>
-                                    <!-- Контент -->
-                                    <div class="flex-1">
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <h3 class="font-semibold text-slate-800">{{ exercise.title }}</h3>
-                                        </div>
-                                        <p class="text-xs text-slate-500">{{ exercise.duration_minutes }} мин • {{ exercise.calories }} ккал</p>
-                                    </div>
-                                    
-                                    <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                                <p>Нет упражнений на сегодня</p>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- Карточка с прогрессом тренировки (кольцо) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Прогресс сегодня</h2>
-                        <span class="text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full font-medium">+5% vs вчера</span>
-                    </div>
-                    <div class="flex flex-col md:flex-row items-center gap-8">
-                        <!-- Круговой прогресс (svg) -->
-                        <div class="relative w-36 h-36">
-                            <svg class="w-full h-full" viewBox="0 0 100 100">
-                                <!-- фоновый круг -->
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="10"/>
-                                <!-- прогресс (75%) -->
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="62.8" class="progress-ring"/>
-                                <defs>
-                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="#6366f1"/>
-                                        <stop offset="100%" stop-color="#10b981"/>
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                <span class="text-3xl font-bold text-slate-800">75%</span>
-                                <span class="text-xs text-slate-500">цели</span>
-                            </div>
-                        </div>
-                        <!-- Детали -->
-                        <div class="flex-1 grid grid-cols-2 gap-4">
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Сожжено</span>
-                                <p class="text-2xl font-bold text-slate-800">843 <span class="text-sm font-normal text-slate-500">ккал</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Длительность</span>
-                                <p class="text-2xl font-bold text-slate-800">64 <span class="text-sm font-normal text-slate-500">мин</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Шаги</span>
-                                <p class="text-2xl font-bold text-slate-800">7.2k <span class="text-sm font-normal text-slate-500">/ 10k</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Вода</span>
-                                <p class="text-2xl font-bold text-slate-800">4.2 <span class="text-sm font-normal text-slate-500">л</span></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Последние активности (лента) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
-                    <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние достижения</h2>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">🏆</div>
-                            <span class="text-slate-600">Новый рекорд: планка 3:45 мин</span>
-                            <span class="ml-auto text-xs text-slate-400">2ч назад</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">⭐</div>
-                            <span class="text-slate-600">Выполнено 5/7 тренировок на неделе</span>
-                            <span class="ml-auto text-xs text-slate-400">вчера</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">🔥</div>
-                            <span class="text-slate-600">Серия тренировок: 12 дней</span>
-                            <span class="ml-auto text-xs text-slate-400">вчера</span>
-                        </div>
-                    </div>
-                </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Уровень подготовки <span class="text-red-500">*</span></label>
+                <select name="fitness_level" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    <option value="">Выберите уровень</option>
+                    <option value="beginner">Начинающий</option>
+                    <option value="intermediate">Средний</option>
+                    <option value="advanced">Продвинутый</option>
+                </select>
             </div>
-
-            <!-- Правая колонка (виджеты) -->
-            <div class="space-y-6">
-                <!-- Рекомендация тренировки (персонализированная) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-white opacity-50">
-                    <h2 class="text-lg font-semibold mb-1">🔥 Персонально</h2>
-                    <p class="text-sm opacity-90 mb-4">Тренировка на основе ваших последних результатов</p>
-                    <div class="bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
-                        <p class="font-medium">Йога для восстановления</p>
-                        <p class="text-xs opacity-80 mt-1">20 мин • растяжка</p>
-                    </div>
-                    <button class="mt-4 w-full py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-white/90 transition shadow-lg">Начать сейчас</button>
-                </div>
-
-         
-                
-                <!-- Быстрое добавление воды -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl flex items-center justify-between opacity-50">
-                    <div>
-                        <h3 class="font-semibold text-slate-800">Стакан воды</h3>
-                        <p class="text-sm text-slate-500">+250 мл</p>
-                    </div>
-                    <button class="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl hover:bg-emerald-200 transition">+</button>
-                </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Цель <span class="text-red-500">*</span></label>
+                <select name="goal" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                    <option value="">Выберите цель</option>
+                    <option value="lose_weight">Похудение</option>
+                    <option value="maintain_weight">Поддержание веса</option>
+                    <option value="gain_mass">Набор массы</option>
+                </select>
             </div>
-        </div>
-    </div>
+            <input type="hidden" value="{{ username }}" name="user">
 
-    <!-- Нижняя навигация (таб-бар) -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-white/40 shadow-2xl md:relative md:mt-8 md:border-t-0 md:bg-transparent md:backdrop-blur-none md:shadow-none">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div class="flex items-center justify-around md:justify-center md:gap-12">
-                <a href="/main" class="flex flex-col items-center text-indigo-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    <span class="text-xs mt-1 font-medium">Главная</span>
-                </a>
-                <a href="/programs" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                    <span class="text-xs mt-1">Тренировки</span>
-                </a>
-                <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
-                    </svg>
-                    <span class="text-xs mt-1">Моя программа</span>
-                </a>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relative opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="text-xs mt-1">Аналитика</span>
+            <div class="flex gap-3 pt-2 sticky bottom-0 bg-white pb-1">
+                <button type="submit" id="submitProfileBtn"
+                        class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white font-semibold rounded-xl shadow-lg transition">
+                    Сохранить и продолжить
                 </button>
-                <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span class="text-xs mt-1">Профиль</span>
-                </a>
+                <button type="button" onclick="document.getElementById('profileModal').remove()"
+                        class="py-4 px-5 bg-slate-100 text-slate-600 font-semibold rounded-xl hover:bg-slate-200 transition">
+                    Позже
+                </button>
             </div>
-        </div>
+        </form>
     </div>
-    
+</div>
+{% endif %}
 
-    <!-- Всплывающие сообщения -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="absolute bottom-0 flex flex-col w-full items-center transform-origin">
-                {% for category, message in messages %}
-                    {% if category == 'success' %}
-                        <div id="notification" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4" onclick="closeNotification()">
-                            <span class="block sm:inline">{{ message }}</span>
-                        </div>
-                    {% endif %}
-                    {% if category == 'warning' %}
-                        <div id="notification" class="bg-amber-100 border border-amber-400 text-amber-700 px-4 py-3 rounded mb-4" onclick="closeNotification()">
-                            <span class="block sm:inline">{{ message }}</span>
-                        </div>
-                    {% endif %}
-                    {% if category == 'error' %}
-                        <div id="notification" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" onclick="closeNotification()">
-                            <span class="block sm:inline">{{ message }}</span>
-                        </div>
-                    {% endif %}
-                    {% if category == 'info' %}
-                        <div id="notification" class="bg-indigo-100 border border-indigo-400 text-indigo-700 px-4 py-3 rounded mb-4" onclick="closeNotification()">
-                            <span class="block sm:inline">{{ message }}</span>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            </div>   
-        {% endif %}
-    {% endwith %} 
-
-    <!-- Модальное окно для заполнения профиля -->
-    {% if first_login %}
-        <div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center visible w-full">
-            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity opacity-100"></div>
-            <!-- Модальное окно -->
-            <div class="relative bg-white rounded-3xl shadow-2xl w-85 max-h-[100vh] overflow-y-auto transform transition-all scale-100 opacity-100">
-                
-                <!-- Заголовок модального окна -->
-                <div class="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white shadow-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-slate-800">Давайте знакомиться!</h2>
-                                <p class="text-xs text-slate-500">Заполните данные и система поможет подобрать для вас тренировки</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Форма профиля с id для перехвата -->
-                <form id="profileForm" action="/api/intro" method="POST" class="p-6 space-y-4">
-                    <!-- Основная информация -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Возраст <span class="text-red-500">*</span></label>
-                        <input type="number" name="age" required min="1" max="120"
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Рост (см) <span class="text-red-500">*</span></label>
-                            <input type="number" name="height" required step="0.1" min="100" max="250"
-                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Вес (кг) <span class="text-red-500">*</span></label>
-                            <input type="number" name="weight" required step="0.1" min="20" max="300"
-                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Пол <span class="text-red-500">*</span></label>
-                        <select name="gender" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                            <option value="">Выберите пол</option>
-                            <option value="male">Мужской</option>
-                            <option value="female">Женский</option>
-                        </select>
-                    </div>
-
-                    <!-- Уровень подготовки -->
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Уровень подготовки <span class="text-red-500">*</span></label>
-                        <select name="fitness_level" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                            <option value="">Выберите уровень</option>
-                            <option value="beginner">Начинающий (нет опыта)</option>
-                            <option value="intermediate">Средний (занимаюсь 1-2 года)</option>
-                            <option value="advanced">Продвинутый (более 2 лет)</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Цель тренировки <span class="text-red-500">*</span></label>
-                        <select name="goal" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
-                            <option value="">Выберите цель</option>
-                            <option value="lose_weight">Похудение</option>
-                            <option value="maintain_weight">Поддержание веса</option>
-                            <option value="gain_mass">Набор массы</option>
-                        </select>
-                        <p class="text-xs text-slate-400 mt-1">Цель влияет на подбор тренировок и питания.</p>
-                    </div>
-                    <input type="hidden" value="{{ username }}" name="user">
-                    
-                    <!-- Кнопки -->
-                    <div class="flex gap-4 pt-4 sticky bottom-0 bg-white pb-2">
-                        <button type="submit" id="submitProfileBtn"
-                                class="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-emerald-500 hover:from-indigo-700 hover:to-emerald-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-200 transition transform hover:scale-[1.02] active:scale-[0.98]">
-                            Сохранить
-                        </button>
-                        <button type="button" onclick="closeFirstLogin()"
-                                class="py-4 px-6 bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition">
-                            Закрыть
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    {% endif %}
-    <script>
-    // Ждем загрузки страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form[action="/api/intro"]');
-        const button = document.getElementById('submitProfileBtn');
-        
-        if (!form || !button) return;
-        
-        // Сохраняем оригинальный HTML кнопки
-        const originalButtonHtml = button.innerHTML;
-        
-        form.addEventListener('submit', function() {
-            // Отключаем кнопку
-            button.disabled = true;
-            
-            // Меняем внешний вид кнопки
-            button.style.opacity = '0.7';
-            button.style.cursor = 'not-allowed';
-            
-            // Добавляем спиннер и меняем текст
-            button.innerHTML = `
-                <svg class="inline w-5 h-5 mr-2 animate-spin" viewBox="0 0 24 24" style="display: inline-block;">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            `;
-            
-            // Кнопка останется в таком состоянии до перезагрузки страницы
-            // (так как форма отправляется на сервер)
-        });
-    });
-</script>
-
-<style>
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .animate-spin {
-        animation: spin 0.8s linear infinite;
-    }
-</style>
-
-<!-- Форма с подобранной программой упражнений -->   
+<!-- Модалка программы тренировок -->
 {% if program_dict %}
-<div id="programModal" class="fixed inset-0 z-50 flex items-center justify-center visible w-full">
-    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity opacity-100"></div>
-    <!-- Модальное окно -->
-    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto transform transition-all scale-100 opacity-100">
-        
-        <!-- Заголовок -->
-        <div class="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
+<div id="programModal" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto mx-4">
+        <div class="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl z-10">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white text-xl">
+                        🏋️
                     </div>
                     <div>
                         <h2 class="text-xl font-bold text-slate-800">Ваша программа тренировок</h2>
-                        <p class="text-xs text-slate-500">Мы подобрали для вас оптимальный план</p>
+                        <p class="text-xs text-slate-500">Мы подобрали оптимальный план</p>
                     </div>
                 </div>
-                <button onclick="closeProgramModal()" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                <button onclick="document.getElementById('programModal').remove()"
+                        class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition text-sm">
                     ✕
                 </button>
             </div>
         </div>
 
-        <!-- Программа тренировок -->
         <div class="p-6 space-y-6">
             {% for day, exercises in program_dict.items() %}
-            <!-- День тренировки -->
             <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                <!-- Заголовок дня -->
                 <div class="bg-gradient-to-r from-indigo-500 to-emerald-500 px-5 py-3">
                     <h3 class="text-lg font-bold text-white">{{ day }}</h3>
                     <p class="text-xs text-white/80">{{ exercises|length }} упражнений</p>
                 </div>
-                
-                <!-- Список упражнений -->
                 <div class="p-4 space-y-3">
                     {% for exercise in exercises %}
-                    <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition">
-                        <!-- Картинка -->
+                    <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl">
                         <div class="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 shadow">
-                            <img src="{{ exercise.image_url }}" 
-                                 alt="{{ exercise.title }}"
-                                 class="w-full h-full object-cover">
+                            <img src="{{ exercise.image_url }}" alt="{{ exercise.title }}" class="w-full h-full object-cover">
                         </div>
-                        
-                        <!-- Информация -->
                         <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <h4 class="font-semibold text-slate-800">{{ exercise.title }}</h4>
-                                <span class="px-2 py-0.5 text-xs rounded-full 
-                                    {% if exercise.category == 'cardio' %}bg-orange-100 text-orange-600
-                                    {% elif exercise.category == 'strength' %}bg-emerald-100 text-emerald-600
-                                    {% elif exercise.category == 'yoga' %}bg-purple-100 text-purple-600
-                                    {% else %}bg-blue-100 text-blue-600{% endif %}">
-                                    {% if exercise.category == 'cardio' %}Кардио
-                                    {% elif exercise.category == 'strength' %}Силовая
-                                    {% elif exercise.category == 'yoga' %}Йога
-                                    {% else %}Растяжка{% endif %}
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500 line-clamp-1">{{ exercise.description or '' }}</p>
-                            <div class="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                            <h4 class="font-semibold text-slate-800">{{ exercise.title }}</h4>
+                            <div class="flex items-center gap-3 mt-1 text-xs text-slate-400">
                                 <span>⏱️ {{ exercise.duration_minutes }} мин</span>
                                 <span>🔥 {{ exercise.calories }} ккал</span>
-                                <span>📊 
-                                    {% if exercise.difficulty == 'beginner' %}Начинающий
-                                    {% elif exercise.difficulty == 'intermediate' %}Средний
-                                    {% elif exercise.difficulty == 'advanced' %}Продвинутый
-                                    {% endif %}
-                                </span>
-                                <span>👤 
-                                    {% if exercise.sex == 'male' %}Мужской
-                                    {% elif exercise.sex == 'female' %}Женский
-                                    {% else %}Универсальный{% endif %}
-                                </span>
                             </div>
                         </div>
                     </div>
@@ -474,39 +449,762 @@
             {% endfor %}
         </div>
 
-        <!-- Кнопка закрытия -->
-        <div class="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-4 rounded-b-3xl">
-            <a href="/main" class="w-full inline-block text-center py-3 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
-                Понятно, спасибо! 
+        <div class="sticky bottom-0 bg-white/95 border-t border-slate-200 px-6 py-4 rounded-b-3xl">
+            <a href="/main" class="block text-center py-3 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold">
+                Понятно, спасибо!
             </a>
         </div>
     </div>
 </div>
+{% endif %}
+
+<div class="h-20 md:hidden"></div>
+
+<script src="static/js/script.js"></script>
 
 <style>
-    .line-clamp-1 {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-</style>
+    /* Контейнер дня календаря */
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    padding: 2px;
+    gap: 2px;
+    overflow: hidden;
+}
 
-<script>
-    function closeProgramModal() {
-        const modal = document.getElementById('programModal');
-        if (modal) modal.remove();
+/* Номер дня */
+.calendar-day-number {
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Текст события */
+.calendar-day-event {
+    font-size: 0.65rem;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.9;
+    font-weight: 600;
+}
+
+.calendar-day.empty {
+    cursor: default;
+    opacity: 0;
+}
+
+.calendar-day.other-month {
+    color: #cbd5e1;
+    cursor: default;
+}
+
+.calendar-day.current-month {
+    color: #334155;
+    background: #f8fafc;
+}
+
+.calendar-day.current-month:hover:not(.empty):not(.other-month) {
+    background: #e0e7ff;
+    transform: scale(1.05);
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.calendar-day.today .calendar-day-event {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.calendar-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #10b981;
+}
+
+.calendar-day.today.has-event::after {
+    background: white;
+}
+
+/* Событие из программы тренировок (синий) */
+.calendar-day.has-event.local-event:not(.today) {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e40af;
+}
+
+.calendar-day.has-event.local-event:not(.today) .calendar-day-event {
+    color: #1e40af;
+}
+
+.calendar-day.has-event.local-event::after {
+    background: #3b82f6;
+}
+
+.calendar-day.today.has-event.local-event::after {
+    background: white;
+}
+
+/* Событие из Google Calendar (зелёный) */
+.calendar-day.has-event.google-event:not(.today) {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.calendar-day.has-event.google-event:not(.today) .calendar-day-event {
+    color: #065f46;
+}
+
+.calendar-day.has-event.google-event::after {
+    background: #10b981;
+}
+
+.calendar-day.today.has-event.google-event::after {
+    background: white;
+}
+
+/* Смешанное событие (тренировка + календарь) (жёлтый) */
+.calendar-day.has-event.mixed-event:not(.today) {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+}
+
+.calendar-day.has-event.mixed-event:not(.today) .calendar-day-event {
+    color: #92400e;
+}
+
+.calendar-day.has-event.mixed-event::after {
+    background: #f59e0b;
+    animation: pulse 2s infinite;
+}
+
+.calendar-day.today.has-event.mixed-event::after {
+    background: white;
+    animation: pulse 2s infinite;
+}
+
+/* Улучшенные hover эффекты для событий */
+.calendar-day.has-event.local-event:hover:not(.today) {
+    background: linear-gradient(135deg, #bfdbfe, #93c5fd);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.calendar-day.has-event.google-event:hover:not(.today) {
+    background: linear-gradient(135deg, #a7f3d0, #6ee7b7);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.calendar-day.has-event.mixed-event:hover:not(.today) {
+    background: linear-gradient(135deg, #fde68a, #fcd34d);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+/* Анимация пульсации для смешанных событий */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
     }
-    
-    function startExercise(exerciseId) {
-        console.log('Начать упражнение:', exerciseId);
-        // Здесь будет вызов вашего таймера
-        alert('Начинаем упражнение #' + exerciseId);
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+}
+
+/* Анимация появления уведомлений */
+@keyframes slide-in {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+}
+
+/* Responsive: уменьшаем размер на мобильных */
+@media (max-width: 640px) {
+    .calendar-day.has-event::after {
+        width: 3px;
+        height: 3px;
+        bottom: 1px;
+    }
+
+    .calendar-day {
+        font-size: 0.65rem;
+        padding: 1px;
+        gap: 1px;
+    }
+
+    .calendar-day-number {
+        font-size: 0.75rem;
+    }
+
+    .calendar-day-event {
+        font-size: 0.55rem;
+    }
+}
+</style>
+<script>
+    // ────────────────────────────────────────────────
+    //  Загрузка невыполненных тренировок
+    // ────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        loadIncompleteWorkouts();
+    });
+
+    function loadIncompleteWorkouts() {
+        fetch('/api/workout/check-incomplete')
+            .then(response => response.json())
+            .then(data => {
+                const alertDiv = document.getElementById('incompleteAlert');
+
+                if (!data.has_incomplete) {
+                    alertDiv.innerHTML = '';
+                    return;
+                }
+
+                // Разделяем просроченные и сегодняшние тренировки
+                const overdue = data.incomplete_days.filter(d => d.is_overdue);
+                const today = data.incomplete_days.filter(d => !d.is_overdue);
+
+                let html = '';
+
+                // Просроченные тренировки
+                if (overdue.length > 0) {
+                    html += `
+                        <div class="glass-card rounded-2xl p-4 shadow-md border-l-4 border-red-500 bg-red-50">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-red-900 mb-2">⚠️ Просроченные тренировки (${overdue.length})</h3>
+                                    <div class="space-y-1 mb-3">
+                                        ${overdue.map(day => `
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-red-800">${day.day_label} (${formatDate(day.workout_date)})</span>
+                                                <a href="/my-training/day/${day.day_number}" class="text-red-600 hover:text-red-800 font-semibold underline">Выполнить →</a>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <button onclick="dismissAlert('overdue')" class="text-xs text-red-600 hover:text-red-800">Скрыть</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Сегодняшние тренировки
+                if (today.length > 0) {
+                    html += `
+                        <div class="glass-card rounded-2xl p-4 shadow-md border-l-4 border-amber-500 bg-amber-50 ${overdue.length > 0 ? 'mt-3' : ''}">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-amber-900 mb-2">🔥 Тренировки на сегодня (${today.length})</h3>
+                                    <div class="space-y-1 mb-3">
+                                        ${today.map(day => `
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-amber-800">${day.day_label}</span>
+                                                <a href="/my-training/day/${day.day_number}" class="text-amber-600 hover:text-amber-800 font-semibold underline">Начать →</a>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    <button onclick="dismissAlert('today')" class="text-xs text-amber-600 hover:text-amber-800">Скрыть</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                alertDiv.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки невыполненных тренировок:', error);
+            });
+    }
+
+    function formatDate(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        return date.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short'
+        });
+    }
+
+    function dismissAlert(type) {
+        const alertDiv = document.getElementById('incompleteAlert');
+        if (type === 'overdue') {
+            const overdue = alertDiv.querySelector('.border-red-500');
+            if (overdue) overdue.remove();
+        } else if (type === 'today') {
+            const today = alertDiv.querySelector('.border-amber-500');
+            if (today) today.remove();
+        }
+
+        // Если нет больше алертов, скрываем контейнер
+        if (alertDiv.children.length === 0) {
+            alertDiv.innerHTML = '';
+        }
+    }
+
+    // ────────────────────────────────────────────────
+    //  Форма профиля — спиннер при отправке
+    // ────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        const profileForm = document.getElementById('profileForm');
+        const submitBtn = document.getElementById('submitProfileBtn');
+
+        if (profileForm && submitBtn) {
+            profileForm.addEventListener('submit', function() {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.7';
+                submitBtn.innerHTML = `
+                    <svg class="inline w-5 h-5 mr-2 animate-spin" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Создаём программу...
+                `;
+            });
+        }
+
+        // Инициализация календаря
+        if (window.location.pathname === '/main' || window.location.pathname === '/') {
+            initCalendar();
+        }
+    });
+
+    // ────────────────────────────────────────────────
+    //  Календарь-виджет
+    // ────────────────────────────────────────────────
+    let currentCalendarDate = new Date();
+    let calendarEvents = [];
+    let isCalendarConnected = false;
+    let selectedDate = new Date();
+    let currentExerciseDetails = [];
+
+    async function initCalendar() {
+        try {
+            const response = await fetch('/api/calendar/status');
+            const data = await response.json();
+            isCalendarConnected = data.connected;
+
+            updateConnectionStatus();
+
+            if (isCalendarConnected) {
+                await loadCalendarEvents();
+            } else {
+                await loadCalendarEvents();
+            }
+
+            renderCalendar();
+        } catch (error) {
+            console.error('Ошибка инициализации календаря:', error);
+            isCalendarConnected = false;
+            updateConnectionStatus();
+            renderCalendar();
+        }
+    }
+
+    function updateConnectionStatus() {
+        const statusDiv = document.getElementById('calendarConnectionStatus');
+
+        if (isCalendarConnected) {
+            statusDiv.innerHTML = `
+                <div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-xs text-emerald-700 font-medium flex-1">Google Calendar подключён</span>
+                    <button onclick="disconnectCalendar()"
+                            class="text-xs text-emerald-600 hover:text-emerald-800 underline font-medium">
+                        Отключить
+                    </button>
+                </div>
+            `;
+        } else {
+            statusDiv.innerHTML = `
+                <div class="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
+                    <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="text-xs text-amber-700 flex-1">Синхронизация отключена</span>
+                    <a href="/api/calendar/connect"
+                       class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline">
+                        Подключить
+                    </a>
+                </div>
+            `;
+        }
+    }
+
+    async function loadCalendarEvents() {
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth() + 1;
+
+        try {
+            const response = await fetch(`/api/training/combined-calendar-events?year=${year}&month=${month}`);
+            const data = await response.json();
+
+            if (data.success && data.events) {
+                calendarEvents = data.events;
+                isCalendarConnected = data.has_google || false;
+                console.log(`📅 Загружено событий: ${data.count} (Google: ${data.has_google}, Программа: ${data.has_local})`);
+            } else {
+                calendarEvents = [];
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки событий:', error);
+            calendarEvents = [];
+        }
+    }
+
+    function renderCalendar() {
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth();
+
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        document.getElementById('currentMonthLabel').textContent = `${monthNames[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+
+        let startDayOfWeek = firstDay.getDay();
+        startDayOfWeek = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+        const daysInMonth = lastDay.getDate();
+        const today = new Date();
+
+        const container = document.getElementById('calendarDays');
+        container.innerHTML = '';
+
+        for (let i = 0; i < startDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day empty';
+            container.appendChild(emptyDay);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day current-month';
+
+            const currentDate = new Date(year, month, day);
+
+            if (currentDate.toDateString() === today.toDateString()) {
+                dayDiv.classList.add('today');
+            }
+
+            const dayEvents = getEventsForDay(currentDate);
+
+            if (dayEvents.length > 0) {
+                dayDiv.classList.add('has-event');
+
+                const hasLocal = dayEvents.some(e => e.source === 'local');
+                const hasGoogle = dayEvents.some(e => e.source === 'google');
+
+                if (hasLocal && hasGoogle) {
+                    dayDiv.classList.add('mixed-event');
+                    dayDiv.title = `${dayEvents.length} событий (тренировка + календарь)`;
+                } else if (hasLocal) {
+                    dayDiv.classList.add('local-event');
+                    const dayNumber = dayEvents.find(e => e.day_number)?.day_number;
+                    dayDiv.title = `Тренировка${dayNumber ? ' (День ' + dayNumber + ')' : ''}`;
+                } else {
+                    dayDiv.classList.add('google-event');
+                    dayDiv.title = `${dayEvents.length} событий`;
+                }
+
+                dayDiv.onclick = () => showEventDetails(dayEvents, currentDate);
+            }
+
+            dayDiv.innerHTML = `
+                <div class="calendar-day-number">${day}</div>
+                ${dayEvents.length > 0 ? `<div class="calendar-day-event">${getEventDisplayText(dayEvents)}</div>` : ''}
+            `;
+
+            container.appendChild(dayDiv);
+        }
+    }
+
+    function getEventDisplayText(events) {
+        if (events.length === 0) return '';
+
+        const localEvent = events.find(e => e.source === 'local');
+        const googleEvent = events.find(e => e.source === 'google');
+
+        if (localEvent) {
+            const match = localEvent.title.match(/День (\d+)/);
+            const dayNum = match ? match[1] : '';
+            return `<span class="text-xs font-semibold">День ${dayNum}</span>`;
+        }
+
+        if (googleEvent) {
+            const shortTitle = googleEvent.title.substring(0, 8);
+            return `<span class="text-xs font-semibold truncate">${shortTitle}...</span>`;
+        }
+
+        return '';
+    }
+
+    function getEventsForDay(date) {
+        return calendarEvents.filter(event => {
+            const eventDate = new Date(event.start);
+            return eventDate.toDateString() === date.toDateString();
+        });
+    }
+
+    function showEventDetails(events, selectedDateObj) {
+        selectedDate = selectedDateObj;
+        const eventDetailsDiv = document.getElementById('eventDetails');
+
+        if (events.length === 0) {
+            eventDetailsDiv.classList.add('hidden');
+            loadTrainingForDate(selectedDateObj);
+            return;
+        }
+
+        const dateFormatted = selectedDateObj.toLocaleDateString('ru-RU', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const localEvent = events.find(e => e.source === 'local');
+        const googleEvents = events.filter(e => e.source === 'google');
+
+        let titleHtml = '';
+
+        if (localEvent) {
+            titleHtml = `🏋️ ${localEvent.title}`;
+        } else if (googleEvents.length > 0) {
+            titleHtml = `📅 ${googleEvents[0].title}`;
+            if (googleEvents.length > 1) {
+                titleHtml += ` <span class="text-xs text-indigo-500">(+${googleEvents.length - 1})</span>`;
+            }
+        }
+
+        document.getElementById('eventTitle').innerHTML = titleHtml;
+        document.getElementById('eventDate').textContent = dateFormatted;
+
+        loadTrainingForDate(selectedDateObj);
+
+        eventDetailsDiv.classList.remove('hidden');
+    }
+
+    async function loadTrainingForDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        try {
+            const response = await fetch(`/api/training/exercises-for-date?date=${dateStr}`);
+            const data = await response.json();
+
+            if (data.success) {
+                currentExerciseDetails = data.exercise_details || [];
+                displayExercisesInEventDetails(data.exercise_details || []);
+                updateTodaysPlanWidget(data.exercises || [], data.day);
+            } else {
+                console.warn('Ошибка загрузки упражнений:', data.error);
+                displayExercisesInEventDetails([]);
+                updateTodaysPlanWidget([], null);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки тренировки:', error);
+            displayExercisesInEventDetails([]);
+            updateTodaysPlanWidget([], null);
+        }
+    }
+
+    function displayExercisesInEventDetails(exercises) {
+        const exercisesList = document.getElementById('exercisesList');
+
+        if (!exercisesList) return;
+
+        if (exercises.length === 0) {
+            exercisesList.innerHTML = `
+                <p class="text-xs text-indigo-500 italic">Нет упражнений на эту дату</p>
+            `;
+            return;
+        }
+
+        exercisesList.innerHTML = exercises.map((ex) => `
+            <div class="flex items-start gap-3 p-2 bg-white/70 rounded-lg hover:bg-white transition">
+                <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
+                    <img src="${ex.image_url}" alt="${ex.title}" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-indigo-900 truncate">${ex.title}</p>
+                    <p class="text-xs text-indigo-600">⏱️ ${ex.duration_minutes} мин</p>
+                    <p class="text-xs text-indigo-600">🔥 ${ex.calories} ккал</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateTodaysPlanWidget(exercises, dayLabel) {
+        const planCards = document.querySelectorAll('.glass-card');
+        let planDiv = null;
+
+        for (let card of planCards) {
+            const heading = card.querySelector('h2');
+            if (heading && heading.textContent.includes('план')) {
+                planDiv = card;
+                break;
+            }
+        }
+
+        if (!planDiv) return;
+
+        const exercisesContainer = planDiv.querySelector('.space-y-4');
+        const titleElement = planDiv.querySelector('h2');
+
+        if (dayLabel) {
+            const dateStr = selectedDate.toLocaleDateString('ru-RU', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            titleElement.innerHTML = `${dayLabel} <span class="text-sm font-normal text-slate-500">${dateStr}</span>`;
+        } else {
+            titleElement.textContent = 'План дня';
+        }
+
+        if (exercises.length === 0) {
+            exercisesContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-slate-400 text-sm mb-3">Нет упражнений на эту дату</p>
+                    <a href="/my-training" class="inline-block text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                        Сгенерировать программу →
+                    </a>
+                </div>
+            `;
+            return;
+        }
+
+        exercisesContainer.innerHTML = exercises.map(exercise => `
+            <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
+                    <img src="${exercise.image_url}" alt="${exercise.title}" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-slate-800">${exercise.title}</h3>
+                    <p class="text-xs text-slate-500">${exercise.duration_minutes} мин • ${exercise.calories} ккал</p>
+                </div>
+                <button class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">Старт</button>
+            </div>
+        `).join('');
+    }
+
+    function closeEventDetails() {
+        document.getElementById('eventDetails').classList.add('hidden');
+        const today = new Date();
+        loadTrainingForDate(today);
+
+        const planCards = document.querySelectorAll('.glass-card');
+        for (let card of planCards) {
+            const heading = card.querySelector('h2');
+            if (heading && heading.textContent.includes('план')) {
+                heading.textContent = 'План дня';
+                break;
+            }
+        }
+    }
+
+    async function changeMonth(direction) {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+        await loadCalendarEvents();
+        renderCalendar();
+        closeEventDetails();
+    }
+
+    async function disconnectCalendar() {
+        if (!confirm('Отключить Google Calendar? Синхронизация тренировок прекратится.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/calendar/disconnect', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                isCalendarConnected = false;
+                updateConnectionStatus();
+                await loadCalendarEvents();
+                renderCalendar();
+                showNotification('Google Calendar отключён', 'info');
+            }
+        } catch (error) {
+            console.error('Ошибка отключения календаря:', error);
+            alert('Не удалось отключить календарь. Попробуйте позже.');
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        const colors = {
+            success: 'bg-emerald-100 border-emerald-300 text-emerald-800',
+            error: 'bg-red-100 border-red-300 text-red-800',
+            warning: 'bg-amber-100 border-amber-300 text-amber-800',
+            info: 'bg-indigo-100 border-indigo-300 text-indigo-800'
+        };
+
+        const emoji = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        const notif = document.createElement('div');
+        notif.className = `fixed bottom-20 right-4 px-4 py-3 rounded-2xl shadow-lg text-sm font-medium ${colors[type]} z-50 animate-slide-in`;
+        notif.innerHTML = `${emoji[type]} ${message}`;
+        notif.onclick = () => notif.remove();
+
+        document.body.appendChild(notif);
+
+        setTimeout(() => {
+            notif.style.opacity = '0';
+            notif.style.transition = 'opacity 0.5s';
+            setTimeout(() => notif.remove(), 500);
+        }, 4000);
     }
 </script>
-{% endif %}
-    <!-- плавный отступ снизу для мобильных (чтобы навигация не перекрывала) -->
-    <div class="h-20 md:hidden"></div>
 
-    <script src="static/js/script.js"></script>
 </body>
 </html>
