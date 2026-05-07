@@ -104,6 +104,44 @@
                     </a>
                 </div>
                 {% endif %}
+
+                <div class="mt-5">
+                    <h3 class="font-semibold text-slate-800 mb-2">Описание</h3>
+                    <p class="text-slate-600 text-sm">{{ exercise.detailed_description or exercise.description or 'Описание отсутствует' }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- Нижняя навигация (таб-бар) -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-white/40 shadow-2xl md:relative md:mt-8 md:border-t-0 md:bg-transparent md:backdrop-blur-none md:shadow-none">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex items-center justify-around md:justify-center md:gap-12">
+                <a href="/main" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span class="text-xs mt-1 font-medium">Главная</span>
+                </a>
+                <a href="/programs" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    <span class="text-xs mt-1">Тренировки</span>
+                </a>
+                <a href="/my-training" class="flex flex-col items-center text-indigo-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
+                    </svg>
+                    <span class="text-xs mt-1">Моя программа</span>
+                </a>
+                <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span class="text-xs mt-1">Профиль</span>
+                </a>
             </div>
         </div>
         {% endfor %}

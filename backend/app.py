@@ -8,9 +8,13 @@ from zoneinfo import ZoneInfo
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
+import os
+from chat import get_program
+import json
 
 # Google Calendar imports
 from google.oauth2.credentials import Credentials
@@ -353,7 +357,47 @@ class WorkoutCompletion(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'day_number', 'completion_date', name='unique_workout_completion'),)
 
 
-# ─────────────────────────── Вспомогательные функции БД ───────────────────────────
+
+
+# Модель статистики
+class Statistics(db.Model):
+    __tablename__ = 'statistics'    
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    
+    duration_seconds = db.Column(db.Integer, nullable=False)  
+    calories_burned = db.Column(db.Integer, nullable=False)  
+    
+    completed = db.Column(db.Boolean, default=True) 
+
+    completed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='statistics')
+    exercise = db.relationship('Exercise', backref='statistics')
+    
+    def __repr__(self):
+        return f'<Statistics {self.user_id} - {self.exercise_id}>'
+    
+
+class FavoriteExercise(db.Model):
+    __tablename__ = 'favorite_exercises'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Связи
+    user = db.relationship('User', backref='favorites')
+    exercise = db.relationship('Exercise', backref='favorited_by')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'exercise_id', name='unique_user_exercise_favorite'),)
+    
+    def __repr__(self):
+        return f'<FavoriteExercise user={self.user_id} exercise={self.exercise_id}>'
+
 
 def parse_program(program_dict: dict):
     full_program = {}
@@ -579,13 +623,84 @@ def main():
                     'sex': ex.sex,
                 })
 
-    return render_template(
-        'index.html',
-        username=session.get('username'),
-        first_login=session.get('first_login'),
-        is_admin=is_admin,
-        current_exercises=current_exercises,
-    )
+    if user.first_login == 1:
+        first_login = True
+        user.first_login = False
+        db.session.commit()
+        db.session.close()
+    else:
+        first_login = False
+
+    # Получаем сегодняшнюю дату
+    today = datetime.utcnow().date()
+    today_start = datetime(today.year, today.month, today.day)
+    
+    # Статистика за сегодня
+    today_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= today_start
+    ).all()
+    
+    # Общая статистика за все время
+    all_stats = Statistics.query.filter_by(user_id=user.id).all()
+    
+    # Рассчитываем показатели
+    total_calories_today = sum(stat.calories_burned for stat in today_stats)
+    total_duration_today = sum(stat.duration_seconds for stat in today_stats) // 60  # в минутах
+    total_exercises_today = len(today_stats)
+    
+    total_calories_all = sum(stat.calories_burned for stat in all_stats)
+    total_duration_all = sum(stat.duration_seconds for stat in all_stats) // 60  # в минутах
+    total_exercises_all = len(all_stats)
+    
+    # Прогресс программы (процент выполнения)
+    program_progress = 0
+    if user.program:
+        program_dict = json.loads(user.program) if isinstance(user.program, str) else user.program
+        total_planned_exercises = 0
+        for day, exercises_ids in program_dict.items():
+            total_planned_exercises += len(exercises_ids)
+        
+        if total_planned_exercises > 0:
+            program_progress = round((total_exercises_all / total_planned_exercises) * 100)
+            if program_progress > 100:
+                program_progress = 100
+    
+    # Сравнение с предыдущим днем
+    yesterday_start = today_start - timedelta(days=1)
+    yesterday_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= yesterday_start,
+        Statistics.completed_at < today_start
+    ).all()
+    
+    yesterday_calories = sum(stat.calories_burned for stat in yesterday_stats)
+    yesterday_duration = sum(stat.duration_seconds for stat in yesterday_stats) // 60
+    
+    # Процент изменения
+    progress_percent_change = 0
+    if yesterday_calories > 0:
+        progress_percent_change = round(((total_calories_today - yesterday_calories) / yesterday_calories) * 100)
+
+
+
+        
+    return render_template('index.html', 
+                         username=session.get('username'), 
+                         first_login=session.get('first_login'),
+                         is_admin=is_admin,
+                         current_exercises=current_exercises,
+                         
+                         total_calories_today=total_calories_today,
+                         total_duration_today=total_duration_today,
+                         total_exercises_today=total_exercises_today,
+                        
+                         total_calories_all=total_calories_all,
+                         total_duration_all=total_duration_all,
+                         total_exercises_all=total_exercises_all,
+                         
+                         program_progress=program_progress,
+                         progress_percent_change=progress_percent_change)
 
 
 @app.route('/admin')
@@ -741,6 +856,96 @@ def my_training_day(day_number: int):
     )
 @app.route('/api/training/day-details/<int:day_number>')
 @login_required
+def generate_training():
+    ensure_user_program_column()
+    user = db.session.get(User, session['user_id'])
+    if not user:
+        flash('Пользователь не найден', 'error')
+        return redirect(url_for('my_training'))
+
+    from chat import DEFAULT_GIGACHAT_AUTH_KEY, DEFAULT_SYSTEM_PROMPT
+
+    if not DEFAULT_GIGACHAT_AUTH_KEY:
+        flash('Не настроен ключ доступа GigaChat (GIGACHAT_AUTH_KEY)', 'error')
+        return redirect(url_for('my_training'))
+    
+    days = request.form.get('days', 30)  
+    try:
+        days = int(days)
+        if days < 1:
+            days = 1
+        if days > 30:
+            days = 30
+    except (ValueError, TypeError):
+        days = 14
+
+    try:
+        exercises = Exercise.query.all()
+        exercises_list = []
+        for exercise in exercises:
+            if user.gender and exercise.sex != user.gender:
+                continue
+            exercises_list.append({
+                'id': exercise.id,
+                'title': exercise.title,
+                'description': exercise.description,
+                'category': exercise.category,
+                'difficulty': exercise.difficulty,
+                'duration_minutes': exercise.duration_minutes,
+                'calories': exercise.calories,
+                'image_url': exercise.image_url,
+                'video_url': exercise.video_url,
+                'detailed_description': exercise.detailed_description,
+                'sex': exercise.sex,
+            })
+
+        user_data = {
+            "id": user.id,
+            "username": user.username,
+            "gender": user.gender,
+            "weight": user.weight,
+            "height": user.height,
+            "age": user.age,
+            "fitness_level": user.fitness_level,
+            "program": None,
+            "goal": user.goal,
+            "days": days
+        }
+
+        auth = GigaChatAuth(DEFAULT_GIGACHAT_AUTH_KEY)
+        if not auth.get_new_token():
+            flash('Не удалось получить токен GigaChat', 'error')
+            return redirect(url_for('my_training'))
+
+        client = GigaChatClient(auth, DEFAULT_SYSTEM_PROMPT)
+        result = client.generate_training_program(user_data, exercises_list)
+        if "error" in result:
+            flash(f"Ошибка генерации: {result['error']}", 'error')
+            return redirect(url_for('my_training'))
+
+        program_json = result.get("program")
+        if isinstance(program_json, dict) and "error" in program_json:
+            flash("Ошибка генерации: не удалось распарсить JSON из ответа", 'error')
+            return redirect(url_for('my_training'))
+        
+        # Проверяем, что количество дней соответствует запрошенному
+        actual_days = len(program_json)
+        if actual_days != days:
+            app.logger.warning(f"Запрошено {days} дней, получено {actual_days}")
+
+        user.program = json.dumps(program_json, ensure_ascii=False)
+        db.session.commit()
+
+        flash('Тренировка сгенерирована', 'success')
+        return redirect(url_for('my_training'))
+    except Exception as e:
+        app.logger.exception("Ошибка генерации тренировки: %s", e)
+        flash(f'Ошибка генерации: {e}', 'error')
+        return redirect(url_for('my_training'))
+
+
+@app.route('/api/training/day-details/<int:day_number>')
+@login_required
 def training_day_details(day_number: int):
     """Получить детали дня тренировки (длительность, калории)."""
     try:
@@ -788,20 +993,33 @@ def training_day_details(day_number: int):
     except Exception as e:
         app.logger.exception(f"❌ Ошибка получения деталей дня: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/profile')
 @login_required
 def profile():
     user = db.session.get(User, session['user_id'])
-    return render_template('profile.html', username=session.get('username'), user=user)
+     # Получаем избранные упражнения пользователя
+    favorites = FavoriteExercise.query.filter_by(user_id=user.id).all()
+    favorite_exercises = [fav.exercise for fav in favorites]
 
-# ═══════════════════════════════════════════════════════════════════
-#                      API МАРШРУТЫ — AUTH
-# ═══════════════════════════════════════════════════════════════════
-# ═══════════════════════════════════════════════════════════════════
-#                  API МАРШРУТЫ — ПРОГРАММА ТРЕНИРОВОК
-# ═══════════════════════════════════════════════════════════════════
+     # Общая статистика за все время
+    all_stats = Statistics.query.filter_by(user_id=user.id).all()
+    
+    total_workouts = len(all_stats)  # Всего тренировок
+    total_calories = sum(stat.calories_burned for stat in all_stats)  # Всего калорий
+    total_seconds = sum(stat.duration_seconds for stat in all_stats)  # Всего секунд
+    total_minutes = total_seconds // 60  # Всего минут
 
-@app.route('/api/training/calendar-events')
+    return render_template('profile.html', 
+                         username=session.get('username'),
+                         user=user,
+                         favorite_exercises=favorite_exercises,
+                         total_workouts=total_workouts,
+                         total_calories=total_calories,
+                         total_minutes=total_minutes)
+
+#Маршруты сервера
+@app.route('/api/admin/set-admin/<int:user_id>', methods=['POST'])
 @login_required
 def training_calendar_events():
     """
@@ -1227,13 +1445,12 @@ def introduction():
 
         full_program_dict = parse_program(program)
         is_admin = user.is_admin() if user else False
-        return render_template(
-            'index.html',
-            username=session.get('username'),
-            first_login=session.get('first_login'),
-            is_admin=is_admin,
-            program_dict=full_program_dict,
-        )
+        return redirect(url_for("main",
+                           username=session.get('username'), 
+                           first_login = session.get('first_login'),
+                           is_admin=is_admin,
+                           program_dict = full_program_dict))
+        
     except Exception as e:
         db.session.rollback()
         flash(f'Ошибка: {str(e)}', 'error')
@@ -1336,6 +1553,251 @@ def change_password():
         db.session.rollback()
         flash(f'Произошла ошибка: {str(e)}', 'error')
         return redirect(url_for('profile'))
+
+        
+@app.route('/api/save-statistics', methods=['POST'])
+@login_required
+def save_statistics():
+    try:
+        data = request.get_json()
+        
+        user_id = session.get('user_id')
+        exercise_id = data.get('exercise_id')
+        duration_seconds = data.get('duration_seconds')
+        calories_burned = data.get('calories_burned')
+
+        
+        # Валидация
+        if not all([exercise_id, duration_seconds]):
+            return jsonify({'success': False, 'error': 'Недостаточно данных'}), 400
+        
+        # Создаем запись статистики
+        stats = Statistics(
+            user_id=user_id,
+            exercise_id=exercise_id,
+            duration_seconds=duration_seconds,
+            calories_burned=calories_burned,
+            completed=True,
+            completed_at=datetime.utcnow()
+        )
+        
+
+        db.session.add(stats)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Статистика сохранена'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+@app.route('/api/favorite/toggle', methods=['POST'])
+@login_required
+def toggle_favorite():
+    """Добавить или удалить упражнение из избранного"""
+    try:
+        data = request.get_json()
+        exercise_id = data.get('exercise_id')
+        
+        if not exercise_id:
+            return jsonify({'success': False, 'error': 'ID упражнения не указан'}), 400
+        
+        user_id = session.get('user_id')
+        
+        # Проверяем, есть ли уже в избранном
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        if favorite:
+            # Удаляем из избранного
+            db.session.delete(favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'removed',
+                'message': 'Упражнение удалено из избранного'
+            })
+        else:
+            # Добавляем в избранное
+            new_favorite = FavoriteExercise(
+                user_id=user_id,
+                exercise_id=exercise_id
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'added',
+                'message': 'Упражнение добавлено в избранное'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorites', methods=['GET'])
+@login_required
+def get_favorites():
+    """Получить список избранных упражнений пользователя"""
+    try:
+        user_id = session.get('user_id')
+        favorites = FavoriteExercise.query.filter_by(user_id=user_id).all()
+        
+        favorite_ids = [fav.exercise_id for fav in favorites]
+        
+        return jsonify({
+            'success': True,
+            'favorites': favorite_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorite/status/<int:exercise_id>', methods=['GET'])
+@login_required
+def get_favorite_status(exercise_id):
+    """Проверить, добавлено ли упражнение в избранное"""
+    try:
+        user_id = session.get('user_id')
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        return jsonify({
+            'success': True,
+            'is_favorite': favorite is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500    
+
+@app.route('/api/save-statistics', methods=['POST'])
+@login_required
+def save_statistics():
+    try:
+        data = request.get_json()
+        
+        user_id = session.get('user_id')
+        exercise_id = data.get('exercise_id')
+        duration_seconds = data.get('duration_seconds')
+        calories_burned = data.get('calories_burned')
+
+        
+        # Валидация
+        if not all([exercise_id, duration_seconds]):
+            return jsonify({'success': False, 'error': 'Недостаточно данных'}), 400
+        
+        # Создаем запись статистики
+        stats = Statistics(
+            user_id=user_id,
+            exercise_id=exercise_id,
+            duration_seconds=duration_seconds,
+            calories_burned=calories_burned,
+            completed=True,
+            completed_at=datetime.utcnow()
+        )
+        
+
+        db.session.add(stats)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Статистика сохранена'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+@app.route('/api/favorite/toggle', methods=['POST'])
+@login_required
+def toggle_favorite():
+    """Добавить или удалить упражнение из избранного"""
+    try:
+        data = request.get_json()
+        exercise_id = data.get('exercise_id')
+        
+        if not exercise_id:
+            return jsonify({'success': False, 'error': 'ID упражнения не указан'}), 400
+        
+        user_id = session.get('user_id')
+        
+        # Проверяем, есть ли уже в избранном
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        if favorite:
+            # Удаляем из избранного
+            db.session.delete(favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'removed',
+                'message': 'Упражнение удалено из избранного'
+            })
+        else:
+            # Добавляем в избранное
+            new_favorite = FavoriteExercise(
+                user_id=user_id,
+                exercise_id=exercise_id
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'added',
+                'message': 'Упражнение добавлено в избранное'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorites', methods=['GET'])
+@login_required
+def get_favorites():
+    """Получить список избранных упражнений пользователя"""
+    try:
+        user_id = session.get('user_id')
+        favorites = FavoriteExercise.query.filter_by(user_id=user_id).all()
+        
+        favorite_ids = [fav.exercise_id for fav in favorites]
+        
+        return jsonify({
+            'success': True,
+            'favorites': favorite_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorite/status/<int:exercise_id>', methods=['GET'])
+@login_required
+def get_favorite_status(exercise_id):
+    """Проверить, добавлено ли упражнение в избранное"""
+    try:
+        user_id = session.get('user_id')
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        return jsonify({
+            'success': True,
+            'is_favorite': favorite is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ═══════════════════════════════════════════════════════════════════
 #                      API МАРШРУТЫ — ТРЕНИРОВКИ
@@ -2064,4 +2526,4 @@ with app.app_context():
     ensure_goal_column()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80, debug=True)
+    app.run(debug=True)
