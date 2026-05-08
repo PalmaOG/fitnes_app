@@ -2,15 +2,15 @@
 import logging
 import secrets
 import json
+from types import SimpleNamespace
 from flask import Flask, flash, jsonify, redirect,render_template, request, url_for, session
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from werkzeug.security import generate_password_hash,check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
-import time
+from datetime import datetime, timedelta, UTC
 import os
-from chat import get_program
+from chat import get_exercises, prepare_program_for_save  # Импортируем функцию из chat.py
 import json
 
 
@@ -19,28 +19,27 @@ from chat import GigaChatClient
 
 app = Flask(__name__, template_folder='../frontend', static_folder='../frontend/static')
 
-# Настраиваем логгирование
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
 )
 app.logger.setLevel(logging.INFO)
 
-# Конфигурация БД (SQLite)
 _BACKEND_DIR = os.path.dirname(__file__)
 _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
-_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "fitness.db")
+_DB_PATH = os.path.join(_BACKEND_DIR, "instance", "fitness.db")
 os.makedirs(os.path.dirname(_DB_PATH), exist_ok=True)
 _DB_URI_PATH = _DB_PATH.replace(os.sep, "/")
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{_DB_URI_PATH}"
 app.secret_key = secrets.token_hex(16)  
 app.config['UPLOAD_FOLDER_IMAGES'] = '../frontend/static/images/workout'
 app.config['UPLOAD_FOLDER_VIDEOS'] = '../frontend/static/videos'
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 app.config['ALLOWED_EXTENSIONS_IMAGES'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['ALLOWED_EXTENSIONS_VIDEOS'] = {'mp4', 'webm', 'ogg', 'mov'}
 
-# Создаем папки, если их нет
+
 os.makedirs(app.config['UPLOAD_FOLDER_IMAGES'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_VIDEOS'], exist_ok=True)
 
@@ -48,7 +47,7 @@ def allowed_file(filename, allowed_extensions):
     """Проверка разрешенного расширения файла"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-# Инициализируем БД
+
 db = SQLAlchemy(app)
 
 GOAL_CANONICAL_MAP = {
@@ -109,13 +108,13 @@ class User(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.today)
     gender = db.Column(db.String(20), nullable=True)
-    weight = db.Column(db.Float, nullable=True)  # в кг
-    height = db.Column(db.Float, nullable=True)  # в см
+    weight = db.Column(db.Float, nullable=True)  
+    height = db.Column(db.Float, nullable=True)  
     age = db.Column(db.Integer, nullable=True)
     fitness_level = db.Column(db.String(30), nullable=True)
     goal = db.Column(db.String(40), nullable=True)
     program = db.Column(db.Text, nullable=True)
-    first_login = db.Column(db.Boolean, default=True)  # Флаг первого входа
+    first_login = db.Column(db.Boolean, default=True)  
     program = db.Column(db.Text, nullable=True)
     goal = db.Column(db.String(30), nullable=True)
     adm = db.Column(db.Boolean, default=False)
@@ -135,27 +134,149 @@ class Exercise(db.Model):
     __tablename__ = 'exercises'
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)  # Название упражнения
-    description = db.Column(db.Text, nullable=True)    # Описание
-    category = db.Column(db.String(50), nullable=False)  # cardio, strength, yoga, stretching
-    difficulty = db.Column(db.String(20), default='beginner')  # beginner, intermediate, advanced
+    title = db.Column(db.String(200), nullable=False)  
+    description = db.Column(db.Text, nullable=True)    
+    category = db.Column(db.String(50), nullable=False)  
+    difficulty = db.Column(db.String(20), default='beginner')  
     
-    # Длительность и калории
-    duration_minutes = db.Column(db.Integer, nullable=False)  # Длительность в минутах
-    calories = db.Column(db.Integer, nullable=False)  # Сжигаемые калории
+    duration_minutes = db.Column(db.Integer, nullable=False)  
+    calories = db.Column(db.Integer, nullable=False)  
     
-    # Изображения и видео
-    image_url = db.Column(db.String(500), nullable=False)  # Путь к изображению
-    video_url = db.Column(db.String(500), nullable=True)   # Путь к видео
+    image_url = db.Column(db.String(500), nullable=False)  
+    video_url = db.Column(db.String(500), nullable=True)   
     
-    # Детальная информация для модального окна
-    detailed_description = db.Column(db.Text, nullable=True)  # Подробное описание
+    detailed_description = db.Column(db.Text, nullable=True)  
 
     sex = db.Column(db.String(10), nullable=False)
     
     
     def __repr__(self):
         return f'<Exercise {self.title}>'
+
+# Модель статистики
+class Statistics(db.Model):
+    __tablename__ = 'statistics'    
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    
+    duration_seconds = db.Column(db.Integer, nullable=False)  
+    calories_burned = db.Column(db.Integer, nullable=False)  
+    
+    completed = db.Column(db.Boolean, default=True) 
+
+    completed_at = db.Column(db.DateTime, default=datetime.now(UTC))
+    
+    user = db.relationship('User', backref='statistics')
+    exercise = db.relationship('Exercise', backref='statistics')
+    
+    def __repr__(self):
+        return f'<Statistics {self.user_id} - {self.exercise_id}>'
+    
+
+class FavoriteExercise(db.Model):
+    __tablename__ = 'favorite_exercises'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(UTC))
+    
+    # Связи
+    user = db.relationship('User', backref='favorites')
+    exercise = db.relationship('Exercise', backref='favorited_by')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'exercise_id', name='unique_user_exercise_favorite'),)
+    
+    def __repr__(self):
+        return f'<FavoriteExercise user={self.user_id} exercise={self.exercise_id}>'
+
+
+def calculate_achievements(user_id):
+    """Расчет достижений пользователя"""
+    from datetime import datetime, timedelta
+    
+    # Получаем всю статистику пользователя
+    stats = Statistics.query.filter_by(user_id=user_id).all()
+    total_workouts = len(stats)
+    total_calories = sum(stat.calories_burned for stat in stats)
+    
+    # Уникальные дни тренировок для серии
+    workout_dates = set()
+    for stat in stats:
+        if stat.completed_at:
+            workout_dates.add(stat.completed_at.date())
+    workout_dates = sorted(workout_dates)
+    
+    # Расчет лучшей серии
+    current_streak = 0
+    best_streak = 0
+    last_date = None
+    current_streak_days = 0
+    
+    for date in workout_dates:
+        if last_date and (date - last_date).days == 1:
+            current_streak_days += 1
+        else:
+            current_streak_days = 1
+        best_streak = max(best_streak, current_streak_days)
+        last_date = date
+    
+    # Текущая серия (последние дни)
+    current_streak = 0
+    if workout_dates:
+        today = datetime.now(UTC).date()
+        date = today
+        while date in workout_dates:
+            current_streak += 1
+            date -= timedelta(days=1)
+    
+    # Достижения
+    achievements = {
+        'total_count': 8,  # Всего достижений
+        'achieved_count': 0,
+        'progress_percent': 0,
+        'first_workout': {'achieved': False, 'current': total_workouts, 'target': 1},
+        'five_workouts': {'achieved': False, 'current': total_workouts, 'target': 5},
+        'thirty_workouts': {'achieved': False, 'current': total_workouts, 'target': 30},
+        'hundred_workouts': {'achieved': False, 'current': total_workouts, 'target': 100},
+        'five_k_calories': {'achieved': False, 'current': total_calories, 'target': 5000},
+        'ten_k_calories': {'achieved': False, 'current': total_calories, 'target': 10000},
+        'streak_7': {'achieved': False, 'current': current_streak, 'target': 7},
+        'streak_30': {'achieved': False, 'current': current_streak, 'target': 30}
+    }
+    
+    # Проверяем выполненные достижения
+    if total_workouts >= 1:
+        achievements['first_workout']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if total_workouts >= 5:
+        achievements['five_workouts']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if total_workouts >= 30:
+        achievements['thirty_workouts']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if total_workouts >= 100:
+        achievements['hundred_workouts']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if total_calories >= 5000:
+        achievements['five_k_calories']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if total_calories >= 10000:
+        achievements['ten_k_calories']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if current_streak >= 7:
+        achievements['streak_7']['achieved'] = True
+        achievements['achieved_count'] += 1
+    if current_streak >= 30:
+        achievements['streak_30']['achieved'] = True
+        achievements['achieved_count'] += 1
+    
+    # Процент выполнения
+    achievements['progress_percent'] = int((achievements['achieved_count'] / achievements['total_count']) * 100)
+    
+    return achievements
 
 
 def parse_program(program_dict: dict):
@@ -166,7 +287,7 @@ def parse_program(program_dict: dict):
         
         for exercise_id in exercise_ids:
             # Получаем упражнение из БД
-            exercise = Exercise.query.get(exercise_id)
+            exercise = db.session.get(Exercise, exercise_id)
             
             if exercise:
                 # Преобразуем объект Exercise в словарь
@@ -205,7 +326,6 @@ def parse_program(program_dict: dict):
     return full_program
 
 
-# Декоратор для проверки авторизации
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -274,45 +394,146 @@ def main():
     user = db.session.get(User, session['user_id'])
     is_admin = user.is_admin() if user else False
 
-     # Получаем программу пользователя
-    current_exercises = []
+    # Получаем сегодняшнюю дату
+    from datetime import datetime, timedelta
+    today = datetime.now(UTC).date()
+    today_str = today.strftime("%Y-%m-%d")
+
+    # Получаем сегодняшние упражнения из программы пользователя
+    today_exercises = []
     
-    if user.program:
-        # Преобразуем JSON строку в словарь
-        import json
-        program_dict = json.loads(user.program) if isinstance(user.program, str) else user.program
-        
-        # Получаем упражнения из "Day 1"
-        day1_exercises_ids = program_dict.get("Day 1", [])
-        
-        if day1_exercises_ids:
-            # Получаем полные данные упражнений из БД
-            exercises = Exercise.query.filter(Exercise.id.in_(day1_exercises_ids)).all()
+    if user and user.program:
+        try:
+            program = json.loads(user.program) if isinstance(user.program, str) else user.program
             
-            # Преобразуем в словари для удобства
-            current_exercises = []
-            for ex in exercises:
-                current_exercises.append({
-                    'id': ex.id,
-                    'title': ex.title,
-                    'description': ex.description,
-                    'category': ex.category,
-                    'difficulty': ex.difficulty,
-                    'duration_minutes': ex.duration_minutes,
-                    'calories': ex.calories,
-                    'image_url': ex.image_url,
-                    'video_url': ex.video_url,
-                    'detailed_description': ex.detailed_description,
-                    'sex': ex.sex
-                })
+            # Проверяем, есть ли тренировка на сегодня
+            if today_str in program:
+                day_exercises = program[today_str]
+                
+                # Извлекаем ID упражнений
+                exercise_ids = []
+                exercise_statuses = {}
+                
+                for item in day_exercises:
+                    if isinstance(item, dict):
+                        exercise_id = item.get('id')
+                        if exercise_id:
+                            exercise_ids.append(exercise_id)
+                            exercise_statuses[exercise_id] = item.get('status', 'pending')
+                    elif isinstance(item, int):
+                        exercise_ids.append(item)
+                        exercise_statuses[item] = 'pending'
+                
+                if exercise_ids:
+                    # Получаем полные данные упражнений из БД
+                    exercises = Exercise.query.filter(Exercise.id.in_(exercise_ids)).all()
+                    exercise_map = {ex.id: ex for ex in exercises}
+                    
+                    # Сохраняем порядок из программы
+                    for ex_id in exercise_ids:
+                        if ex_id in exercise_map:
+                            exercise = exercise_map[ex_id]
+                            today_exercises.append({
+                                'id': exercise.id,
+                                'title': exercise.title,
+                                'description': exercise.description,
+                                'category': exercise.category,
+                                'difficulty': exercise.difficulty,
+                                'duration_minutes': exercise.duration_minutes,
+                                'calories': exercise.calories,
+                                'image_url': exercise.image_url,
+                                'video_url': exercise.video_url,
+                                'status': exercise_statuses.get(ex_id, 'pending')
+                            })
+        except Exception as e:
+            app.logger.error(f"Ошибка загрузки программы: {e}")
+
+    # Получаем прогресс программы
+    program_progress = 0
+    total_exercises_all = 0
+    if user and user.program:
+        try:
+            program = json.loads(user.program) if isinstance(user.program, str) else user.program
+            total_planned = 0
+            completed = 0
+            
+            
+
+            for date, exercises in program.items():
+                for ex in exercises:
+                    total_planned += 1
+                    if isinstance(ex, dict):
+                        # Новый формат с статусом
+                        if ex.get('status') == 'completed':
+                            completed += 1
+                    elif isinstance(ex, int):
+                        # Старый формат (не выполнено)
+                        pass
+            if total_planned > 0:
+                program_progress = round((completed / total_planned) * 100)
+                if program_progress > 100:
+                    program_progress = 100
+
+            total_exercises_all = completed
+        except Exception:
+            pass
+
+    # Статистика
+    today_start = datetime(today.year, today.month, today.day)
+    today_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= today_start
+    ).all() if user else []
+    
+    all_stats = Statistics.query.filter_by(user_id=user.id).all() if user else []
+    
+    total_calories_today = sum(stat.calories_burned for stat in today_stats)
+    total_duration_today = sum(stat.duration_seconds for stat in today_stats) // 60
+    total_exercises_today = len(today_stats)
+    
+    total_calories_all = sum(stat.calories_burned for stat in all_stats)
+    total_duration_all = sum(stat.duration_seconds for stat in all_stats) // 60
+    
+    # Сравнение с предыдущим днем
+    yesterday_start = today_start - timedelta(days=1)
+    yesterday_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= yesterday_start,
+        Statistics.completed_at < today_start
+    ).all() if user else []
+    
+    yesterday_calories = sum(stat.calories_burned for stat in yesterday_stats)
+    
+    progress_percent_change = 0
+    if yesterday_calories > 0:
+        progress_percent_change = round(((total_calories_today - yesterday_calories) / yesterday_calories) * 100)
+    
+    current_stat = {
+        "total_calories_today": total_calories_today,
+        "total_duration_today": total_duration_today,
+        "total_exercises_today": total_exercises_today,
+        "total_calories_all": total_calories_all,
+        "total_duration_all": total_duration_all,
+        "total_exercises_all": total_exercises_all,
+        "program_progress": program_progress,
+        "progress_percent_change": progress_percent_change
+    }
+
+    if program_progress == 100 and user.goal != "maintain_weight":
+        program_completed = True
+    else:
+        program_completed = False
 
     return render_template('index.html', 
-                           username=session.get('username'), 
-                           first_login = session.get('first_login'),
-                           is_admin=is_admin,
-                           current_exercises = current_exercises)
+                         username=session.get('username'), 
+                         first_login=session.get('first_login'),
+                         is_admin=is_admin,
+                         today_exercises=today_exercises,
+                         current_stat=current_stat,
+                         program_completed=program_completed,
+                         user_data = user)
 
-# Админ панель
+
 @app.route('/admin')
 @login_required
 @admin_required
@@ -351,7 +572,7 @@ def workouts():
             }
             exercises_list.append(exercise_dict)
 
-    return render_template('programs.html', username=session.get('username'), exercises=exercises_list)
+    return render_template('programs.html', username=session.get('username'), exercises=exercises_list, is_admin = user.adm)
 
 
 @app.route('/my-training')
@@ -368,73 +589,104 @@ def my_training():
             program = None
 
         if isinstance(program, dict):
+            # Получаем все ID упражнений из программы
             all_exercise_ids = set()
-            day_items: list[tuple[str, list[int]]] = []
+            day_items: list[tuple[str, list]] = []
 
-            for day_key, exercise_ids in program.items():
-                day_str = str(day_key).strip()
-                ids: list[int] = []
-                if isinstance(exercise_ids, list):
-                    for value in exercise_ids:
-                        try:
-                            ids.append(int(value))
-                        except Exception:
-                            continue
+            for date_key, exercises_data in program.items():
+                ids = []
+                # exercises_data может быть списком чисел или списком словарей
+                for item in exercises_data:
+                    if isinstance(item, dict):
+                        # Новый формат: {"id": 1, "status": "pending"}
+                        exercise_id = item.get('id')
+                        if exercise_id:
+                            ids.append(exercise_id)
+                            all_exercise_ids.add(exercise_id)
+                    elif isinstance(item, int):
+                        # Старый формат: просто число
+                        ids.append(item)
+                        all_exercise_ids.add(item)
+                
+                day_items.append((date_key, ids, exercises_data))  # Сохраняем оригинальные данные для статусов
 
-                if ids:
-                    all_exercise_ids.update(ids)
-                day_items.append((day_str, ids))
-
+            # Получаем названия упражнений из БД
             title_map: dict[int, str] = {}
+            exercises_map: dict[int, dict] = {}  # Для полных данных упражнений
             if all_exercise_ids:
                 exercises = Exercise.query.filter(Exercise.id.in_(list(all_exercise_ids))).all()
-                title_map = {exercise.id: exercise.title for exercise in exercises}
+                for exercise in exercises:
+                    title_map[exercise.id] = exercise.title
+                    exercises_map[exercise.id] = {
+                        'id': exercise.id,
+                        'title': exercise.title,
+                        'category': exercise.category,
+                        'difficulty': exercise.difficulty,
+                        'duration_minutes': exercise.duration_minutes,
+                        'calories': exercise.calories,
+                        'image_url': exercise.image_url
+                    }
 
-            def _day_number(day_value: str) -> int | None:
-                normalized = day_value.replace("_", " ").strip()
-                digits = "".join(ch for ch in normalized if ch.isdigit())
-                if not digits:
-                    return None
+            def format_date(date_str: str) -> str:
+                """Форматирует дату из YYYY-MM-DD в читаемый формат"""
                 try:
-                    return int(digits)
-                except Exception:
-                    return None
+                    from datetime import datetime
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                    # Формат: "15 января, Понедельник"
+                    months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                             'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+                    weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+                    return f"{date_obj.day} {months[date_obj.month - 1]}, {weekdays[date_obj.weekday()]}"
+                except:
+                    return date_str
 
-            def _day_label(day_value: str) -> str:
-                normalized = day_value.replace("_", " ").strip()
-                if normalized.lower().startswith("day"):
-                    digits = "".join(ch for ch in normalized if ch.isdigit())
-                    if digits:
-                        return f"День {digits}"
-                    return normalized.replace("Day", "День").replace("day", "День", 1)
-                return normalized.replace("Day", "День").replace("day", "День", 1)
+            def get_exercise_status(exercises_data, exercise_id) -> str:
+                """Получает статус выполнения упражнения"""
+                for item in exercises_data:
+                    if isinstance(item, dict) and item.get('id') == exercise_id:
+                        return item.get('status', 'pending')
+                return 'pending'
 
             rendered_program = []
-            fallback_day_number = 1
-            for day_str, ids in day_items:
-                day_number = _day_number(day_str) or fallback_day_number
-                fallback_day_number += 1
+            for date_key, ids, exercises_data in day_items:
+                # Сортируем ID для сохранения порядка (опционально)
+                # ids уже в том порядке, в котором они были в JSON
+                
+                # Формируем список упражнений с полными данными
+                exercises_list = []
+                for ex_id in ids:
+                    exercises_list.append({
+                        'id': ex_id,
+                        'title': title_map.get(ex_id, f"Упражнение #{ex_id}"),
+                        'status': get_exercise_status(exercises_data, ex_id),
+                        **exercises_map.get(ex_id, {})  # Добавляем остальные данные если есть
+                    })
+                
                 rendered_program.append({
-                    "number": day_number,
-                    "day": _day_label(day_str),
-                    "exercises": [title_map.get(ex_id, f"#{ex_id}") for ex_id in ids],
+                    "date": date_key,
+                    "day": format_date(date_key),
+                    "exercises": exercises_list,
+                    "has_exercises": len(ids) > 0
                 })
 
-    return render_template('my_training.html', username=session.get('username'), program=rendered_program)
+    return render_template('my_training.html', 
+                         username=session.get('username'), 
+                         program=rendered_program,
+                         is_admin = user.adm)
 
 
-@app.route('/my-training/day/<int:day_number>')
+@app.route('/my-training/day/<date>')
 @login_required
-def my_training_day(day_number: int):
+def my_training_day(date):
     ensure_user_program_column()
     user = db.session.get(User, session['user_id'])
 
     if not user or not user.program:
-        flash('Программа тренировок не найдена. Сначала сгенерируй тренировку.', 'warning')
+        flash('Программа тренировок не найдена. Сначала сгенерируйте тренировку.', 'warning')
         return redirect(url_for('my_training'))
 
     try:
-        program = json.loads(user.program)
+        program = json.loads(user.program) if isinstance(user.program, str) else user.program
     except Exception:
         flash('Не удалось прочитать программу тренировок.', 'error')
         return redirect(url_for('my_training'))
@@ -443,33 +695,285 @@ def my_training_day(day_number: int):
         flash('Неверный формат программы тренировок.', 'error')
         return redirect(url_for('my_training'))
 
-    selected_ids: list[int] = []
-    for day_key, exercise_ids in program.items():
-        day_str = str(day_key).replace("_", " ").strip()
-        digits = "".join(ch for ch in day_str if ch.isdigit())
-        if digits and digits.isdigit() and int(digits) == day_number and isinstance(exercise_ids, list):
-            for value in exercise_ids:
-                try:
-                    selected_ids.append(int(value))
-                except Exception:
-                    continue
-            break
-
-    if not selected_ids:
+    if date not in program:
         flash('Тренировка для этого дня не найдена.', 'warning')
         return redirect(url_for('my_training'))
 
-    exercises = Exercise.query.filter(Exercise.id.in_(selected_ids)).all()
-    exercise_map = {exercise.id: exercise for exercise in exercises}
-    ordered_exercises = [exercise_map[ex_id] for ex_id in selected_ids if ex_id in exercise_map]
+    day_exercises = program[date]
+    
+    # Извлекаем ID упражнений и их статусы
+    exercise_ids = []
+    exercise_statuses = {}
+    all_completed = True
+    
+    for item in day_exercises:
+        if isinstance(item, dict):
+            exercise_id = item.get('id')
+            status = item.get('status', 'pending')
+            if exercise_id:
+                exercise_ids.append(exercise_id)
+                exercise_statuses[exercise_id] = status
+                if status != 'completed':
+                    all_completed = False
+        elif isinstance(item, int):
+            exercise_ids.append(item)
+            exercise_statuses[item] = 'pending'
+            all_completed = False
 
+    # Получаем упражнения из БД
+    exercises = Exercise.query.filter(Exercise.id.in_(exercise_ids)).all() if exercise_ids else []
+    exercise_map = {exercise.id: exercise for exercise in exercises}
+    
+    # Сохраняем порядок из программы
+    ordered_exercises = []
+    for ex_id in exercise_ids:
+        if ex_id in exercise_map:
+            exercise = exercise_map[ex_id]
+            exercise.status = exercise_statuses.get(ex_id, 'pending')
+            ordered_exercises.append(exercise)
+
+    # Форматируем дату для отображения
+    from datetime import datetime
+    try:
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+        weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+        day_label = f"{date_obj.day} {months[date_obj.month - 1]}, {weekdays[date_obj.weekday()]}"
+    except:
+        day_label = date
+
+    # Передаем флаг all_completed в шаблон
     return render_template(
         'my_training_day.html',
         username=session.get('username'),
-        day_label=f"День {day_number}",
+        day_label=day_label,
         exercises=ordered_exercises,
+        date=date,
+        all_completed=all_completed  # Добавляем флаг
     )
 
+
+@app.route('/api/regenerate-program', methods=['POST'])
+@login_required
+def regenerate_program():
+    try:
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            flash('Пользователь не авторизован', 'error')
+            return redirect(url_for('auth'))
+        
+        user = db.session.get(User, user_id)
+        
+        if not user:
+            flash('Пользователь не найден', 'error')
+            return redirect(url_for('profile'))
+        
+        # Получаем данные из формы
+        age = request.form.get('age')
+        height = request.form.get('height')
+        weight = request.form.get('weight')
+        fitness_level = request.form.get('fitness_level')
+        goal = request.form.get('goal', 'maintain_weight')
+        
+        # Преобразование типов
+        try:
+            age = int(age) if age else None
+            height = float(height) if height else None
+            weight = float(weight) if weight else None
+        except ValueError:
+            flash('Пожалуйста, введите корректные числовые значения', 'error')
+            return redirect(url_for('profile'))
+        
+        # Обновляем данные пользователя
+        user.age = age
+        user.height = height
+        user.weight = weight
+        user.fitness_level = fitness_level
+        user.goal = goal
+        
+        db.session.commit()
+        
+        # Проверяем, что все необходимые поля заполнены
+        if not all([user.age, user.height, user.weight, user.fitness_level, user.goal]):
+            flash('Пожалуйста, заполните все поля', 'error')
+            return redirect(url_for('profile'))
+        
+        # Импортируем необходимые модули для генерации
+        from chat import DEFAULT_GIGACHAT_AUTH_KEY, DEFAULT_SYSTEM_PROMPT, GigaChatAuth, GigaChatClient
+        
+        if not DEFAULT_GIGACHAT_AUTH_KEY:
+            flash('Не настроен ключ доступа GigaChat', 'error')
+            return redirect(url_for('profile'))
+        
+        # Получаем все упражнения из БД
+        exercises = Exercise.query.all()
+        exercises_list = []
+        for exercise in exercises:
+            # Фильтруем упражнения по полу пользователя
+            if user.gender and exercise.sex not in [user.gender, 'unisex']:
+                continue
+            exercises_list.append({
+                'id': exercise.id,
+                'title': exercise.title,
+                'description': exercise.description,
+                'category': exercise.category,
+                'difficulty': exercise.difficulty,
+                'duration_minutes': exercise.duration_minutes,
+                'calories': exercise.calories,
+                'image_url': exercise.image_url,
+                'video_url': exercise.video_url,
+                'detailed_description': exercise.detailed_description,
+                'sex': exercise.sex,
+            })
+        
+        # Данные пользователя для генерации
+        user_data = {
+            "id": user.id,
+            "username": user.username,
+            "gender": user.gender,
+            "weight": user.weight,
+            "height": user.height,
+            "age": user.age,
+            "fitness_level": user.fitness_level,
+            "program": None,
+            "goal": user.goal,
+            "days": 30  # Генерируем на 30 дней
+        }
+        
+        # Получаем токен и генерируем программу
+        auth = GigaChatAuth(DEFAULT_GIGACHAT_AUTH_KEY)
+        if not auth.get_new_token():
+            flash('Не удалось получить токен GigaChat', 'error')
+            return redirect(url_for('profile'))
+        
+        client = GigaChatClient(auth, DEFAULT_SYSTEM_PROMPT)
+        result = client.generate_training_program(user_data, exercises_list)
+        
+        if "error" in result:
+            flash(f"Ошибка генерации: {result['error']}", 'error')
+            return redirect(url_for('profile'))
+        
+        program_json = result.get("program")
+        if isinstance(program_json, dict) and "error" in program_json:
+            flash("Ошибка генерации: не удалось распарсить JSON из ответа", 'error')
+            return redirect(url_for('profile'))
+        
+        # Преобразуем программу в формат с датами и статусами
+        from datetime import datetime
+        from chat import prepare_program_for_save
+        
+        prepared_program = prepare_program_for_save(program_json)
+        
+        # Сохраняем программу в БД
+        user.program = json.dumps(prepared_program, ensure_ascii=False)
+        db.session.commit()
+        
+        flash('Программа тренировок успешно cгенерирована!', 'success')
+        return redirect(url_for('my_training'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception("Ошибка перегенерации программы: %s", e)
+        flash(f'Ошибка перегенерации: {str(e)}', 'error')
+        return redirect(url_for('profile'))
+    
+
+@app.route('/api/check-day-completion/<date>', methods=['GET'])
+@login_required
+def check_day_completion(date):
+    try:
+        user_id = session.get('user_id')
+        user = db.session.get(User, user_id)
+        
+        if not user or not user.program:
+            return jsonify({'all_completed': False})
+        
+        program = json.loads(user.program) if isinstance(user.program, str) else user.program
+        
+        if date not in program:
+            return jsonify({'all_completed': False})
+        
+        day_exercises = program[date]
+        all_completed = True
+        
+        for item in day_exercises:
+            if isinstance(item, dict):
+                status = item.get('status', 'pending')
+                if status != 'completed':
+                    all_completed = False
+                    break
+            elif isinstance(item, int):
+                all_completed = False
+                break
+        
+        return jsonify({'all_completed': all_completed})
+        
+    except Exception as e:
+        app.logger.error(f"Ошибка проверки дня: {e}")
+        return jsonify({'all_completed': False})
+
+@app.route('/api/update-exercise-status', methods=['POST'])
+@login_required
+def update_exercise_status():
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        date = data.get('date')
+        exercise_id = data.get('exercise_id')
+        status = data.get('status', 'completed')
+        
+        if not date or not exercise_id:
+            return jsonify({'success': False, 'error': 'Недостаточно данных'}), 400
+        
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'Пользователь не найден'}), 404
+        
+        # Если программы нет, создаем пустую
+        if not user.program:
+            program = {}
+        else:
+            program = json.loads(user.program) if isinstance(user.program, str) else user.program
+        
+        # Обновляем статус упражнения в указанную дату
+        if date not in program:
+            program[date] = []
+        
+        updated = False
+        for i, exercise in enumerate(program[date]):
+            if isinstance(exercise, dict) and exercise.get('id') == exercise_id:
+                program[date][i]['status'] = status
+                if status == 'completed':
+                    program[date][i]['completed_at'] = datetime.now(UTC).isoformat()
+                updated = True
+                break
+            elif isinstance(exercise, int) and exercise == exercise_id:
+                program[date][i] = {
+                    'id': exercise_id,
+                    'status': status,
+                    'completed_at': datetime.now(UTC).isoformat() if status == 'completed' else None
+                }
+                updated = True
+                break
+        
+        # Если упражнение не найдено, добавляем новое
+        if not updated:
+            program[date].append({
+                'id': exercise_id,
+                'status': status,
+                'completed_at': datetime.now(UTC).isoformat() if status == 'completed' else None
+            })
+        
+        user.program = json.dumps(program, ensure_ascii=False)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Статус упражнения обновлен'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/generate-training', methods=['POST'])
 @login_required
@@ -479,12 +983,33 @@ def generate_training():
     if not user:
         flash('Пользователь не найден', 'error')
         return redirect(url_for('my_training'))
+    
+    if request.content_type == 'application/json':
+        regen_data = request.get_json()
+        regen_goal = regen_data.get('goal')
+        if regen_data:
+            user.goal = regen_goal
+
+    required_fields = [user.gender, user.weight, user.height, user.age, user.fitness_level, user.goal]
+    if not all(required_fields):
+        flash('Для генерации тренировок нужно заполнить дополнительные сведения', 'error')
+        return redirect(url_for('profile'))
 
     from chat import DEFAULT_GIGACHAT_AUTH_KEY, DEFAULT_SYSTEM_PROMPT
 
     if not DEFAULT_GIGACHAT_AUTH_KEY:
         flash('Не настроен ключ доступа GigaChat (GIGACHAT_AUTH_KEY)', 'error')
         return redirect(url_for('my_training'))
+    
+    days = request.form.get('days', 30)  
+    try:
+        days = int(days)
+        if days < 1:
+            days = 1
+        if days > 30:
+            days = 30
+    except (ValueError, TypeError):
+        days = 14
 
     try:
         exercises = Exercise.query.all()
@@ -506,6 +1031,8 @@ def generate_training():
                 'sex': exercise.sex,
             })
 
+       
+
         user_data = {
             "id": user.id,
             "username": user.username,
@@ -516,6 +1043,7 @@ def generate_training():
             "fitness_level": user.fitness_level,
             "program": None,
             "goal": user.goal,
+            "days": days
         }
 
         auth = GigaChatAuth(DEFAULT_GIGACHAT_AUTH_KEY)
@@ -533,8 +1061,15 @@ def generate_training():
         if isinstance(program_json, dict) and "error" in program_json:
             flash("Ошибка генерации: не удалось распарсить JSON из ответа", 'error')
             return redirect(url_for('my_training'))
+        
+        # Проверяем, что количество дней соответствует запрошенному
+        actual_days = len(program_json)
+        if actual_days != days:
+            app.logger.warning(f"Запрошено {days} дней, получено {actual_days}")
+        
+        prepared_program = prepare_program_for_save(program_json)
 
-        user.program = json.dumps(program_json, ensure_ascii=False)
+        user.program = json.dumps(prepared_program, ensure_ascii=False)
         db.session.commit()
 
         flash('Тренировка сгенерирована', 'success')
@@ -548,10 +1083,168 @@ def generate_training():
 @app.route('/profile')
 @login_required
 def profile():
-    user = db.session.get(User, session['user_id'])
+    user = db.session.get(User,session['user_id'])
+    
+    # Получаем избранные упражнения пользователя
+    favorites = FavoriteExercise.query.filter_by(user_id=user.id).all()
+    favorite_exercises = [fav.exercise for fav in favorites]
+    
+    # ========== СТАТИСТИКА ==========
+    from datetime import datetime, timedelta
+    
+    # Общая статистика за все время
+    all_stats = Statistics.query.filter_by(user_id=user.id).all()
+    
+    total_workouts = len(all_stats)
+    total_calories = sum(stat.calories_burned for stat in all_stats)
+    total_seconds = sum(stat.duration_seconds for stat in all_stats)
+    total_minutes = total_seconds // 60
+    
+    # Уникальные дни тренировок (для серии)
+    workout_dates = set()
+    for stat in all_stats:
+        date = stat.completed_at.date() if stat.completed_at else None
+        if date:
+            workout_dates.add(date)
+    workout_dates = sorted(workout_dates)
+    
+    # Расчет лучшей серии
+    best_streak = 0
+    current_streak = 0
+    last_date = None
+    
+    for date in workout_dates:
+        if last_date and (date - last_date).days == 1:
+            current_streak += 1
+        else:
+            current_streak = 1
+        best_streak = max(best_streak, current_streak)
+        last_date = date
+    
+    # Статистика за сегодня
+    today = datetime.now(UTC).date()
+    today_start = datetime(today.year, today.month, today.day)
+    today_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= today_start
+    ).all()
+    
+    today_calories = sum(stat.calories_burned for stat in today_stats)
+    today_minutes = sum(stat.duration_seconds for stat in today_stats) // 60
+    today_workouts = len(today_stats)
+    
+    # Статистика за неделю
+    week_ago = datetime.now(UTC) - timedelta(days=7)
+    week_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= week_ago
+    ).all()
+    
+    week_calories = sum(stat.calories_burned for stat in week_stats)
+    week_minutes = sum(stat.duration_seconds for stat in week_stats) // 60
+    week_workouts = len(week_stats)
+    
+    # Статистика за месяц
+    month_ago = datetime.now(UTC) - timedelta(days=30)
+    month_stats = Statistics.query.filter(
+        Statistics.user_id == user.id,
+        Statistics.completed_at >= month_ago
+    ).all()
+    
+    month_calories = sum(stat.calories_burned for stat in month_stats)
+    month_minutes = sum(stat.duration_seconds for stat in month_stats) // 60
+    month_workouts = len(month_stats)
+    
+    # ========== ДАННЫЕ ДЛЯ ГРАФИКОВ ==========
+    # Данные для графика тренировок за последние 7 дней
+    chart_labels = []
+    chart_calories = []
+    chart_minutes = []
+    
+    for i in range(6, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime(date.year, date.month, date.day)
+        date_end = date_start + timedelta(days=1)
+        
+        day_stats = Statistics.query.filter(
+            Statistics.user_id == user.id,
+            Statistics.completed_at >= date_start,
+            Statistics.completed_at < date_end
+        ).all()
+        
+        day_calories = sum(stat.calories_burned for stat in day_stats)
+        day_minutes = sum(stat.duration_seconds for stat in day_stats) // 60
+        
+        chart_labels.append(date.strftime('%d.%m'))
+        chart_calories.append(day_calories)
+        chart_minutes.append(day_minutes)
+    
+    # Данные для категорий упражнений
+    category_names = ['cardio', 'strength', 'yoga', 'stretching']
+    category_labels = ['Кардио', 'Силовые', 'Йога', 'Растяжка']
+    category_counts = [0, 0, 0, 0]
+    
+    for stat in all_stats:
+        exercise = db.session.get(Exercise,stat.exercise_id)
+        if exercise and exercise.category in category_names:
+            idx = category_names.index(exercise.category)
+            category_counts[idx] += 1
+    
+    # Топ упражнений
+    exercise_stats = {}
+    for stat in all_stats:
+        if stat.exercise_id not in exercise_stats:
+            exercise_stats[stat.exercise_id] = {
+                'count': 0,
+                'total_duration': 0,
+                'total_calories': 0
+            }
+        exercise_stats[stat.exercise_id]['count'] += 1
+        exercise_stats[stat.exercise_id]['total_duration'] += stat.duration_seconds
+        exercise_stats[stat.exercise_id]['total_calories'] += stat.calories_burned
+    
+    # Получаем топ-5 упражнений
+    top_exercises = []
+    for ex_id, stats in sorted(exercise_stats.items(), key=lambda x: x[1]['count'], reverse=True)[:5]:
+        exercise = db.session.get(Exercise,ex_id)
+        if exercise:
+            top_exercises.append({
+                'title': exercise.title,
+                'count': stats['count'],
+                'duration': stats['total_duration'] // 60,
+                'calories': stats['total_calories']
+            })
+
+    
     return render_template('profile.html', 
                          username=session.get('username'),
-                         user=user)
+                         user=user,
+                         is_admin = user.adm,
+                         favorite_exercises=favorite_exercises,
+                         # Основная статистика
+                         total_workouts=total_workouts,
+                         total_calories=total_calories,
+                         total_minutes=total_minutes,
+                         best_streak=best_streak,
+                         # Статистика за сегодня
+                         today_calories=today_calories,
+                         today_minutes=today_minutes,
+                         today_workouts=today_workouts,
+                         # Статистика за неделю
+                         week_calories=week_calories,
+                         week_minutes=week_minutes,
+                         week_workouts=week_workouts,
+                         # Статистика за месяц
+                         month_calories=month_calories,
+                         month_minutes=month_minutes,
+                         month_workouts=month_workouts,
+                         # Данные для графиков
+                         chart_labels=chart_labels,
+                         chart_calories=chart_calories,
+                         chart_minutes=chart_minutes,
+                         category_labels=category_labels,
+                         category_counts=category_counts,
+                         top_exercises=top_exercises)
 
 #Маршруты сервера
 @app.route('/api/admin/set-admin/<int:user_id>', methods=['POST'])
@@ -745,6 +1438,7 @@ def login():
         session['user_id'] = user.id
         session['username'] = user.username
         session['first_login'] = user.first_login
+        session['is_admin'] = user.adm
         if remember:
             session.permanent = True
             app.permanent_session_lifetime = 30 * 24 * 60 * 60
@@ -846,20 +1540,11 @@ def introduction():
 
         session['first_login'] = False
 
+
+
         flash('Профиль успешно обновлен!', 'success')
-        program = get_program(user_id)
-        user = User.query.get(session['user_id'])
-        if program is None:
-           flash(f'Произошла ошибка при создании программы:', 'error')
-           return redirect(url_for("main"))
-        else:
-            full_program_dict = parse_program(program)
-        is_admin = user.is_admin() if user else False
-        return render_template('index.html', 
-                           username=session.get('username'), 
-                           first_login = session.get('first_login'),
-                           is_admin=is_admin,
-                           program_dict = full_program_dict)
+
+        return redirect(url_for('my_training'))
         
     except Exception as e:
         db.session.rollback()
@@ -950,6 +1635,8 @@ def update_profile():
         db.session.rollback()
         flash(f'Произошла ошибка: {str(e)}', 'error')
         return redirect(url_for('profile'))
+    
+
 @app.route('/api/change-password', methods=['POST'])
 @login_required
 def change_password():
@@ -987,6 +1674,128 @@ def change_password():
         db.session.rollback()
         flash(f'Произошла ошибка: {str(e)}', 'error')
         return redirect(url_for('profile'))
+    
+
+@app.route('/api/save-statistics', methods=['POST'])
+@login_required
+def save_statistics():
+    try:
+        data = request.get_json()
+        
+        user_id = session.get('user_id')
+        exercise_id = data.get('exercise_id')
+        duration_seconds = data.get('duration_seconds')
+        calories_burned = data.get('calories_burned')
+        date = data.get('date')  # Может быть None для обратной совместимости
+        
+        # Валидация
+        if not all([exercise_id, duration_seconds]):
+            return jsonify({'success': False, 'error': 'Недостаточно данных'}), 400
+        
+        # Создаем запись статистики
+        stats = Statistics(
+            user_id=user_id,
+            exercise_id=exercise_id,
+            duration_seconds=duration_seconds,
+            calories_burned=calories_burned,
+            completed=True,
+            completed_at=datetime.now(UTC)
+        )
+        
+        db.session.add(stats)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Статистика сохранена'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+@app.route('/api/favorite/toggle', methods=['POST'])
+@login_required
+def toggle_favorite():
+    """Добавить или удалить упражнение из избранного"""
+    try:
+        data = request.get_json()
+        exercise_id = data.get('exercise_id')
+        
+        if not exercise_id:
+            return jsonify({'success': False, 'error': 'ID упражнения не указан'}), 400
+        
+        user_id = session.get('user_id')
+        
+        # Проверяем, есть ли уже в избранном
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        if favorite:
+            # Удаляем из избранного
+            db.session.delete(favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'removed',
+                'message': 'Упражнение удалено из избранного'
+            })
+        else:
+            # Добавляем в избранное
+            new_favorite = FavoriteExercise(
+                user_id=user_id,
+                exercise_id=exercise_id
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'action': 'added',
+                'message': 'Упражнение добавлено в избранное'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorites', methods=['GET'])
+@login_required
+def get_favorites():
+    """Получить список избранных упражнений пользователя"""
+    try:
+        user_id = session.get('user_id')
+        favorites = FavoriteExercise.query.filter_by(user_id=user_id).all()
+        
+        favorite_ids = [fav.exercise_id for fav in favorites]
+        
+        return jsonify({
+            'success': True,
+            'favorites': favorite_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/favorite/status/<int:exercise_id>', methods=['GET'])
+@login_required
+def get_favorite_status(exercise_id):
+    """Проверить, добавлено ли упражнение в избранное"""
+    try:
+        user_id = session.get('user_id')
+        favorite = FavoriteExercise.query.filter_by(
+            user_id=user_id, 
+            exercise_id=exercise_id
+        ).first()
+        
+        return jsonify({
+            'success': True,
+            'is_favorite': favorite is not None
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def ensure_goal_column():
@@ -1009,4 +1818,4 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',port=80)
+    app.run(host="0.0.0.0", port=80,debug=True)

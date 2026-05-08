@@ -338,12 +338,22 @@
                     </svg>
                 </a>
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-800">Все тренировки</h1>
+                    <h1 class="text-2xl font-bold text-slate-800">Библиотека упражнений</h1>
                     <p class="text-sm text-slate-500">{{ username }}, выбирай подходящую</p>
                 </div>
             </div>
+            
             <div class="flex items-center gap-4">
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg transition">Выйти</a>
+                {% if is_admin %}
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 
+                    text-white font-semibold rounded-2xl shadow-lg transition">
+                    Админ
+                </a>
+                {% endif %}                
+                <a href="/api/logout" class="p-2 w-full py-3.5 mx-5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
+                    text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
+                    Выйти
+                </a>
             </div>
         </div>
     </div>
@@ -437,20 +447,14 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
-                    <span class="text-xs mt-1">Тренировки</span>
+                    <span class="text-xs mt-1">Упражнения</span>
                 </a>
                 <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>
-                <button class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition relativ opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="text-xs mt-1">Аналитика</span>
-                </button>
                 <a href="/profile" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -496,6 +500,7 @@
         const categoryClass = categoryColors[exercise.category] || 'bg-gray-100 text-gray-600';
         const categoryText = categoryDisplay[exercise.category] || exercise.category;
         const difficultyText = difficultyDisplay[exercise.difficulty] || exercise.difficulty;
+         const isFavorite = window.favoriteIds && window.favoriteIds.has(exercise.id);
         
         return `
             <div class="exercise-card glass-card rounded-3xl shadow-xl hover-scale overflow-hidden relative"
@@ -526,8 +531,8 @@
                     
                     <div class="flex items-center gap-2">
                         <button onclick="openExerciseModal('${exercise.id}')" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Подробнее</button>
-                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-200 transition favorite-btn" data-id="${exercise.id}">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center hover:bg-slate-200 transition favorite-btn" data-id="${exercise.id}">
+                            <svg class="h-5 w-5 ${isFavorite ? 'text-red-500' : ''}" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                             </svg>
                         </button>
@@ -535,7 +540,11 @@
                 </div>
             </div>
         `;
+
+        
+
     }
+
     
     // Функция для отображения текущей страницы
     function displayCurrentPage() {
@@ -942,5 +951,121 @@ function changePage(page) {
         }
     });
     </script>
+
+<script>
+    // Загрузка избранных упражнений при загрузке страницы
+async function loadFavorites() {
+    try {
+        const response = await fetch('/api/favorites');
+        const data = await response.json();
+        
+        if (data.success) {
+            // Сохраняем ID избранных упражнений в Set для быстрого доступа
+            window.favoriteIds = new Set(data.favorites);
+            
+            // Обновляем отображение кнопок
+            document.querySelectorAll('.favorite-btn').forEach(btn => {
+                const exerciseId = parseInt(btn.getAttribute('data-id'));
+                if (window.favoriteIds.has(exerciseId)) {
+                    const svg = btn.querySelector('svg');
+                    svg.setAttribute('fill', 'currentColor');
+                    svg.classList.add('text-red-500');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки избранного:', error);
+    }
+}
+
+// Функция для переключения лайка
+async function toggleFavorite(button, exerciseId) {
+    try {
+        // Отключаем кнопку на время запроса
+        button.disabled = true;
+        
+        const response = await fetch('/api/favorite/toggle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ exercise_id: exerciseId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const svg = button.querySelector('svg');
+            
+            if (data.action === 'added') {
+                svg.setAttribute('fill', 'currentColor');
+                svg.classList.add('text-red-500');
+                window.favoriteIds.add(exerciseId);
+                showNotification('success', 'Упражнение добавлено в избранное');
+            } else {
+                svg.setAttribute('fill', 'none');
+                svg.classList.remove('text-red-500');
+                window.favoriteIds.delete(exerciseId);
+                showNotification('success', 'Упражнение удалено из избранного');
+            }
+        } else {
+            showNotification('error', data.error || 'Ошибка при сохранении');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showNotification('error', 'Ошибка при сохранении');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// Функция для показа уведомлений
+function showNotification(type, message) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg max-w-md ${
+        type === 'success' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'
+    }`;
+    notification.innerHTML = `
+        <div class="flex items-center gap-2">
+            ${type === 'success' ? 
+                '<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' :
+                '<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>'
+            }
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Обновите функцию attachFavoriteHandlers
+function attachFavoriteHandlers() {
+    document.querySelectorAll('.favorite-btn').forEach(btn => {
+        // Удаляем старый обработчик, если есть
+        btn.removeEventListener('click', favoriteClickHandler);
+        btn.addEventListener('click', favoriteClickHandler);
+    });
+}
+
+// Отдельная функция-обработчик
+function favoriteClickHandler(e) {
+    e.stopPropagation();
+    const exerciseId = parseInt(this.getAttribute('data-id'));
+    toggleFavorite(this, exerciseId);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, exercises:', exercisesData);
+    filteredExercises = [...exercisesData];
+    displayCurrentPage();
+    loadFavorites(); // Загружаем избранное
+});
+</script>
 </body>
 </html>
