@@ -338,12 +338,22 @@
                     </svg>
                 </a>
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-800">Все тренировки</h1>
+                    <h1 class="text-2xl font-bold text-slate-800">Библиотека упражнений</h1>
                     <p class="text-sm text-slate-500">{{ username }}, выбирай подходящую</p>
                 </div>
             </div>
+            
             <div class="flex items-center gap-4">
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg transition">Выйти</a>
+                {% if is_admin %}
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 
+                    text-white font-semibold rounded-2xl shadow-lg transition">
+                    Админ
+                </a>
+                {% endif %}                
+                <a href="/api/logout" class="p-2 w-full py-3.5 mx-5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
+                    text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
+                    Выйти
+                </a>
             </div>
         </div>
     </div>
@@ -437,11 +447,11 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
-                    <span class="text-xs mt-1">Тренировки</span>
+                    <span class="text-xs mt-1">Упражнения</span>
                 </a>
                 <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>

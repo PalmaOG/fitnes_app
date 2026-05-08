@@ -26,14 +26,14 @@
                     <p class="text-sm text-slate-500">Готовы продолжить тренировки?</p>
                 </div>
             </div>
-            <div>
+            <div class="flex items-center gap-4">
                 {% if is_admin %}
                 <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 
                     text-white font-semibold rounded-2xl shadow-lg transition">
                     Админ
                 </a>
                 {% endif %}                
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
+                <a href="/api/logout" class="p-2 w-full py-3.5 mx-5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
                     text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
                     Выйти
                 </a>
@@ -46,22 +46,22 @@
 
     <!-- Основной контент (сетка дашборда) -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-1 gap-6">
             
             <!-- Левая колонка (прогресс, активность) -->
             <div class="lg:col-span-2 space-y-6">
                
-                                <!-- Активные тренировки / план -->
+                <!-- Активные тренировки / план -->
                 <div class="glass-card rounded-3xl p-6 shadow-xl">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-slate-800">Сегодняшний план</h2>
-                        <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все тренировки →</a>
+                        <a href="/programs" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Все упражнения →</a>
                     </div>
                     
                     <div class="space-y-4">
-                        {% if current_exercises %}
-                            {% for exercise in current_exercises %}
-                                <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition">
+                        {% if today_exercises %}
+                            {% for exercise in today_exercises %}
+                                <div class="flex items-center gap-4 p-3 bg-white/60 rounded-2xl hover:bg-white/80 transition {% if exercise.status == 'completed' %}opacity-75{% endif %}">
                                     <!-- Миниатюрная картинка слева -->
                                     <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-md">
                                         <img src="{{ exercise.image_url }}" 
@@ -76,153 +76,128 @@
                                         <p class="text-xs text-slate-500">{{ exercise.duration_minutes }} мин • {{ exercise.calories }} ккал</p>
                                     </div>
                                     
-                                    <button onclick="showExerciseModal({{ exercise.id }}, '{{ exercise.title|replace("'", "\\'") }}', '{{ exercise.image_url }}', '{{ exercise.video_url or '' }}', '{{ exercise.description|replace("'", "\\'") }}', {{ exercise.duration_minutes }}, {{ exercise.calories }})" 
-        class="px-5 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-semibold hover:bg-indigo-100 transition">
-    Старт
+                                    <button onclick="showExerciseModalWithDate({{ exercise.id }}, '{{ exercise.title|replace("'", "\\'")|safe }}', '{{ exercise.image_url }}', '{{ exercise.video_url or '' }}', '{{ exercise.description|replace("'", "\\'")|safe }}', {{ exercise.duration_minutes }}, {{ exercise.calories }}, '{{ exercise.status }}')" 
+                                            class="px-5 py-2 rounded-xl text-sm font-semibold transition 
+                                                {% if exercise.status == 'completed' %}
+                                                    bg-green-100 text-green-600 cursor-not-allowed opacity-60
+                                                {% else %}
+                                                    bg-indigo-50 text-indigo-600 hover:bg-indigo-100
+                                                {% endif %}"
+                                            {% if exercise.status == 'completed' %}disabled{% endif %}>
+                                        {% if exercise.status == 'completed' %}
+                                            ✓ Выполнено
+                                        {% else %}
+                                            Старт
+                                        {% endif %}
                                     </button>
                                 </div>
                             {% endfor %}
                         {% else %}
-                                <p>Нет упражнений на сегодня</p>
+                            <div class="text-center py-8">
+                                <svg class="w-16 h-16 mx-auto text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <p class="text-slate-500">Нет упражнений на сегодня</p>
+                                <p class="text-sm text-slate-400 mt-1">Сгенерируйте программу тренировок в разделе "Моя программа"</p>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
                 
-                <!-- Карточка с прогрессом тренировки (кольцо) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-semibold text-slate-800">Прогресс программы</h2>
-                        <span class="text-sm {% if progress_percent_change >= 0 %}text-emerald-600 bg-emerald-50{% else %}text-rose-600 bg-rose-50{% endif %} px-3 py-1 rounded-full font-medium">
-                            {% if progress_percent_change >= 0 %}+{% endif %}{{ progress_percent_change }}% vs вчера
-                        </span>
-                    </div>
-                    <div class="flex flex-col md:flex-row items-center gap-8">
-                        <!-- Круговой прогресс (svg) -->
-                        <div class="relative w-36 h-36">
-                            <svg class="w-full h-full" viewBox="0 0 100 100">
-                                <!-- фоновый круг -->
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="10"/>
-                                <!-- прогресс (динамический) -->
-                                {% set dasharray = 251.2 %}
-                                {% set offset = dasharray - (dasharray * program_progress / 100) %}
-                                <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" 
-                                        stroke-dasharray="{{ dasharray }}" stroke-dashoffset="{{ offset }}" class="progress-ring"/>
-                                <defs>
-                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="#6366f1"/>
-                                        <stop offset="100%" stop-color="#10b981"/>
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="absolute inset-0 flex items-center justify-center flex-col">
-                                <span class="text-3xl font-bold text-slate-800">{{ program_progress }}%</span>
-                                <span class="text-xs text-slate-500">выполнено</span>
+                {% if current_stat %}
+                    <!-- Карточка с прогрессом тренировки (кольцо) -->
+                    <div class="glass-card rounded-3xl p-6 shadow-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-slate-800">Прогресс программы</h2>
+                            <span class="text-sm {% if current_stat.progress_percent_change >= 0 %}text-emerald-600 bg-emerald-50{% else %}text-rose-600 bg-rose-50{% endif %} px-3 py-1 rounded-full font-medium">
+                                {% if current_stat.progress_percent_change >= 0 %}+{% endif %}{{ current_stat.progress_percent_change }}% vs вчера
+                            </span>
+                        </div>
+                        <div class="flex flex-col md:flex-row items-center gap-8">
+                            <!-- Круговой прогресс (svg) -->
+                            <div class="relative w-36 h-36">
+                                <svg class="w-full h-full" viewBox="0 0 100 100">
+                                    <!-- фоновый круг -->
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="10"/>
+                                    <!-- прогресс (динамический) -->
+                                    {% set dasharray = 251.2 %}
+                                    
+                                    {% set offset = dasharray - (dasharray * current_stat.program_progress / 100) %}
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" stroke-width="10" stroke-linecap="round" 
+                                            stroke-dasharray="{{ dasharray }}" stroke-dashoffset="{{ offset }}" class="progress-ring"/>
+                                    <defs>
+                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="#6366f1"/>
+                                            <stop offset="100%" stop-color="#10b981"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                    <span class="text-3xl font-bold text-slate-800">{{ current_stat.program_progress }}%</span>
+                                    <span class="text-xs text-slate-500">выполнено</span>
+                                </div>
+                            </div>
+                            <!-- Детали -->
+                            <div class="flex-1 grid grid-cols-2 gap-4">
+                                <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                    title="Всего сожжено калорий за сегодня">
+                                    <span class="text-sm text-slate-500">Сожжено сегодня</span>
+                                    <p class="text-2xl font-bold text-slate-800">{{ current_stat.total_calories_today }} <span class="text-sm font-normal text-slate-500">ккал</span></p>
+                                </div>
+                                <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                    title="Общее время тренировок за сегодня">
+                                    <span class="text-sm text-slate-500">Длительность</span>
+                                    <p class="text-2xl font-bold text-slate-800">{{ current_stat.total_duration_today }} <span class="text-sm font-normal text-slate-500">мин</span></p>
+                                </div>
+                                <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
+                                    title="Количество выполненных упражнений за сегодня">
+                                    <span class="text-sm text-slate-500">Упражнений</span>
+                                    <p class="text-2xl font-bold text-slate-800">{{ current_stat.total_exercises_today }} <span class="text-sm font-normal text-slate-500">шт</span></p>
+                                </div>
+                                <div class="bg-white/60 rounded-2xl p-4">
+                                    <span class="text-sm text-slate-500">Среднее время</span>
+                                    <p class="text-2xl font-bold text-slate-800">
+                                        {% if current_stat.total_exercises_today > 0 %}
+                                            {{ (current_stat.total_duration_today / current_stat.total_exercises_today)|round|int }}
+                                        {% else %}
+                                            0
+                                        {% endif %}
+                                        <span class="text-sm font-normal text-slate-500">мин/упр</span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <!-- Детали -->
-                        <div class="flex-1 grid grid-cols-2 gap-4">
-                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
-                                title="Всего сожжено калорий за сегодня">
-                                <span class="text-sm text-slate-500">Сожжено сегодня</span>
-                                <p class="text-2xl font-bold text-slate-800">{{ total_calories_today }} <span class="text-sm font-normal text-slate-500">ккал</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
-                                title="Общее время тренировок за сегодня">
-                                <span class="text-sm text-slate-500">Длительность</span>
-                                <p class="text-2xl font-bold text-slate-800">{{ total_duration_today }} <span class="text-sm font-normal text-slate-500">мин</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4 group hover:bg-white/80 transition cursor-help"
-                                title="Количество выполненных упражнений за сегодня">
-                                <span class="text-sm text-slate-500">Упражнений</span>
-                                <p class="text-2xl font-bold text-slate-800">{{ total_exercises_today }} <span class="text-sm font-normal text-slate-500">шт</span></p>
-                            </div>
-                            <div class="bg-white/60 rounded-2xl p-4">
-                                <span class="text-sm text-slate-500">Среднее время</span>
-                                <p class="text-2xl font-bold text-slate-800">
-                                    {% if total_exercises_today > 0 %}
-                                        {{ (total_duration_today / total_exercises_today)|round|int }}
-                                    {% else %}
-                                        0
-                                    {% endif %}
-                                    <span class="text-sm font-normal text-slate-500">мин/упр</span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Дополнительная статистика (скрыта по умолчанию, показывается при нажатии) -->
-                    <div class="mt-4 pt-4 border-t border-slate-200">
-                        <button onclick="toggleDetailedStats()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
-                            <span>Общая статистика</span>
-                            <svg class="h-4 w-4 transition-transform" id="statsArrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </button>
                         
-                        <div id="detailedStats" class="hidden mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="bg-indigo-50 rounded-xl p-3">
-                                <p class="text-xs text-indigo-600">Всего калорий</p>
-                                <p class="text-lg font-bold text-indigo-700">{{ total_calories_all }} ккал</p>
-                            </div>
-                            <div class="bg-emerald-50 rounded-xl p-3">
-                                <p class="text-xs text-emerald-600">Общее время</p>
-                                <p class="text-lg font-bold text-emerald-700">{{ (total_duration_all // 60) if total_duration_all >= 60 else 0 }} ч {{ total_duration_all % 60 if total_duration_all >= 60 else total_duration_all }} мин</p>
-                            </div>
-                            <div class="bg-purple-50 rounded-xl p-3">
-                                <p class="text-xs text-purple-600">Всего упражнений</p>
-                                <p class="text-lg font-bold text-purple-700">{{ total_exercises_all }}</p>
+                        <!-- Дополнительная статистика (скрыта по умолчанию, показывается при нажатии) -->
+                        <div class="mt-4 pt-4 border-t border-slate-200">
+                            <button onclick="toggleDetailedStats()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                                <span>Общая статистика</span>
+                                <svg class="h-4 w-4 transition-transform" id="statsArrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            
+                            <div id="detailedStats" class="hidden mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-indigo-50 rounded-xl p-3">
+                                    <p class="text-xs text-indigo-600">Всего калорий</p>
+                                    <p class="text-lg font-bold text-indigo-700">{{ current_stat.total_calories_all }} ккал</p>
+                                </div>
+                                <div class="bg-emerald-50 rounded-xl p-3">
+                                    <p class="text-xs text-emerald-600">Общее время</p>
+                                    <p class="text-lg font-bold text-emerald-700">{{ (current_stat.total_duration_all // 60) if current_stat.total_duration_all >= 60 else 0 }} ч {{ current_stat.total_duration_all % 60 if current_stat.total_duration_all >= 60 else current_stat.total_duration_all }} мин</p>
+                                </div>
+                                <div class="bg-purple-50 rounded-xl p-3">
+                                    <p class="text-xs text-purple-600">Всего упражнений</p>
+                                    <p class="text-lg font-bold text-purple-700">{{ current_stat.total_exercises_all }}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Последние активности (лента) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl opacity-50">
-                    <h2 class="text-lg font-semibold text-slate-800 mb-4">Последние достижения</h2>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">🏆</div>
-                            <span class="text-slate-600">Новый рекорд: планка 3:45 мин</span>
-                            <span class="ml-auto text-xs text-slate-400">2ч назад</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">⭐</div>
-                            <span class="text-slate-600">Выполнено 5/7 тренировок на неделе</span>
-                            <span class="ml-auto text-xs text-slate-400">вчера</span>
-                        </div>
-                        <div class="flex items-center gap-3 text-sm">
-                            <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">🔥</div>
-                            <span class="text-slate-600">Серия тренировок: 12 дней</span>
-                            <span class="ml-auto text-xs text-slate-400">вчера</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Правая колонка (виджеты) -->
-            <div class="space-y-6">
-                <!-- Рекомендация тренировки (персонализированная) -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-white opacity-50">
-                    <h2 class="text-lg font-semibold mb-1">🔥 Персонально</h2>
-                    <p class="text-sm opacity-90 mb-4">Тренировка на основе ваших последних результатов</p>
-                    <div class="bg-white/20 rounded-2xl p-4 backdrop-blur-sm">
-                        <p class="font-medium">Йога для восстановления</p>
-                        <p class="text-xs opacity-80 mt-1">20 мин • растяжка</p>
-                    </div>
-                    <button class="mt-4 w-full py-3 bg-white text-indigo-600 rounded-xl font-semibold hover:bg-white/90 transition shadow-lg">Начать сейчас</button>
-                </div>
-
-         
+                {% endif %}
                 
-                <!-- Быстрое добавление воды -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl flex items-center justify-between opacity-50">
-                    <div>
-                        <h3 class="font-semibold text-slate-800">Стакан воды</h3>
-                        <p class="text-sm text-slate-500">+250 мл</p>
-                    </div>
-                    <button class="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl hover:bg-emerald-200 transition">+</button>
-                </div>
             </div>
+
+            
         </div>
     </div>
 
@@ -240,11 +215,11 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
-                    <span class="text-xs mt-1">Тренировки</span>
+                    <span class="text-xs mt-1">Упражнения</span>
                 </a>
                 <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>
@@ -383,7 +358,210 @@
             </div>
         </div>
     {% endif %}
+
+    <!-- Модальное окно для завершения программы -->
+    <div id="programCompleteModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all">
+            <div class="relative">
+                <!-- Анимированные конфетти эффект (опционально) -->
+                <div class="absolute -top-12 left-1/2 transform -translate-x-1/2">
+                    <div class="w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- Контент модального окна -->
+                <div id="programCompleteModalContent" class="pt-16 pb-6 px-6" >
+                    <h3 class="text-2xl font-bold text-center text-slate-800 mb-3">
+                        🎉 Поздравляем! 🎉
+                    </h3>
+                    <p class="text-center text-slate-600 mb-6">
+                        Вы успешно завершили свою программу тренировок!<br>
+                        <span class="text-sm text-slate-500 mt-2 block">
+                            Не забудьте изменить свои параметры в настройках пользователя
+                        </span>
+                    </p>
+                    
+                    <div class="bg-blue-50 rounded-xl p-4 mb-6">
+                        <p class="text-sm text-blue-800 mb-3">
+                            📊 Для поддержания достигнутых результатов рекомендуем:
+                        </p>
+                        <ul class="text-sm text-blue-700 space-y-2">
+                            <li class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Обновить свои антропометрические данные
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Сгенерировать новую программу на поддержание веса
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button onclick="showRegenForm()" 
+                                class="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02]">
+                            💪 Сгенерировать программу на поддержание веса
+                        </button>
+                        <button onclick="closeProgramModal()" 
+                                class="text-slate-600 hover:text-slate-800 font-medium py-2 px-4 rounded-xl transition">
+                            Напомнить позже
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+
+
+
+    // Показываем модальное окно, если программа завершена
+    {% if program_completed %}
+    document.addEventListener('DOMContentLoaded', function() {
+        showProgramCompleteModal();
+    });
+    {% endif %}
+    
+    function showProgramCompleteModal() {
+        const modal = document.getElementById('programCompleteModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Анимация конфетти (опционально)
+        setTimeout(() => {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }, 100);
+    }
+    
+    function closeProgramModal() {
+        const modal = document.getElementById('programCompleteModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        
+        
+    }
+    
+    function showRegenForm() {
+        const modal_content = document.getElementById('programCompleteModalContent');
+        modal_content.innerHTML = `
+        <h3 class="text-2xl font-bold text-center text-slate-800 mb-3">
+             Продолжаем тренироваться!
+        </h3>
+        <p class="text-center text-slate-600 mb-6">
+            Обновите свои данные и наш ИИ подберет для вас новую программу
+        </p>
+        <form id="profileForm" action="/api/regenerate-program" method="POST" class="p-6 space-y-4">
+                    <!-- Основная информация -->
+                     
+                    
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Возраст</label>
+                            <input type="number" name="age" required min="1" max="120" value="{% if user_data %}{{ user_data.age }}{% endif %}"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Рост (см)</label>
+                            <input type="number" name="height" required step="0.1" min="100" max="250" value="{% if user_data %}{{ user_data.height }}{% endif %}"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Вес (кг)</label>
+                            <input type="number" name="weight" required step="0.1" min="20" max="300" value="{% if user_data %}{{ user_data.weight }}{% endif %}"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                        </div>
+                    </div>
+
+                    <!-- Уровень подготовки -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Уровень подготовки</label>
+                        <select name="fitness_level" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                            <option value="">Выберите уровень</option>
+                            <option value="beginner" {% if user_data %}{% if user_data.fitness_level == 'beginner' %}selected{% endif %}{% endif %}>Начинающий (нет опыта)</option>
+                            <option value="intermediate" {% if user_data %}{% if user_data.fitness_level == 'intermediate' %}selected{% endif %}{% endif %}>Средний (занимаюсь 1-2 года)</option>
+                            <option value="advanced" {% if user_data %}{% if user_data.fitness_level == 'advanced' %}selected{% endif %}{% endif %}>Продвинутый (более 2 лет)</option>
+                        </select>
+                    </div>
+                    <input type="hidden" value="maintain_weight" name="goal">
+                    <input type="hidden" value="{{ username }}" name="user">
+                    
+                    <p class="px-5 text-slate-400 mt-1">Вы можете вернуться к этому позже в настройках профиля</p>
+
+                    <!-- Кнопки -->
+                    <div class="flex gap-3 pt-4 sticky bottom-0 bg-white pb-2">
+                        <button type="submit" id="submitProfileBtn"
+                                class="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02]">
+                            Сгенерировать
+                        </button>
+                        <button type="button" onclick="closeProgramModal()"
+                                class="py-4 px-6 bg-white border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition">
+                            Закрыть
+                        </button>
+                    </div>
+                </form>`;
+
+                // Добавляем обработчик отправки формы
+                const form = document.getElementById('profileForm');
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        // Не вызываем e.preventDefault(), чтобы форма отправилась
+                        const submitBtn = document.getElementById('submitProfileBtn');
+                        if (submitBtn) {
+                            submitBtn.innerHTML = '⏳ Генерация программы...';
+                            submitBtn.disabled = true;
+                        }
+                        // Форма отправится автоматически
+                    });
+                }
+
+
+        
+    }
+
+    function generateMaintenanceProgram() {
+
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '⏳ Генерация программы...';
+        button.disabled = true;
+        
+        
+    }
+    
+    function showNotification(message, type) {
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white font-medium`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+    
+    // Закрытие по клику вне модального окна
+    document.getElementById('programCompleteModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeProgramModal();
+        }
+    });
+
     // Ждем загрузки страницы
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form[action="/api/intro"]');
@@ -422,6 +600,90 @@
     let workoutTimerInterval = null;
     let timerSeconds = 0;
     let isWorkoutRunning = false;
+
+    // Функция показа модального окна с датой для сегодняшних тренировок
+    function showExerciseModalWithDate(id, title, imageUrl, videoUrl, description, duration_minutes, calories, status) {
+        // Если упражнение уже выполнено, не открываем модальное окно
+        if (status === 'completed') {
+            showResultNotification('info', 'Это упражнение уже выполнено сегодня!');
+            return;
+        }
+        
+        // Сохраняем данные упражнения
+        currentExerciseData = {
+            id: id,
+            title: title,
+            image_url: imageUrl,
+            video_url: videoUrl,
+            description: description,
+            duration_minutes: duration_minutes,
+            calories: calories
+        };
+        
+        // Получаем сегодняшнюю дату для обновления статуса
+        const today = new Date();
+        currentDate = today.toISOString().split('T')[0];
+
+        // Создаем модальное окно (используем существующую HTML-структуру)
+        const modalHTML = `
+            <div id="exerciseWarningModal" class="exercise-modal active">
+                <div class="exercise-modal-content">
+                    <div class="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Внимание!</h2>
+                                    <p class="text-xs text-slate-500">Перед началом тренировки</p>
+                                </div>
+                            </div>
+                            <button onclick="closeWarningModal()" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                            <div class="flex items-start gap-3">
+                                <svg class="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <div>
+                                    <h3 class="font-semibold text-amber-800">Меры предосторожности</h3>
+                                    <ul class="text-md text-amber-700 mt-2 space-y-1">
+                                        <li>• Перед выполнением обязательно разомнитесь</li>
+                                        <li>• Следите за правильностью техники выполнения</li>
+                                        <li>• При появлении боли или дискомфорта прекратите выполнение</li>
+                                        <li>• Не выполняйте упражнение при наличии противопоказаний</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-2 mb-5">
+                            <span class="text-sm text-slate-600">Рекомендуемая длительность:</span>
+                            <span class="font-bold text-indigo-600">${duration_minutes} минут</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="startExerciseWithTimer()" class="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
+                                ✅ Начать тренировку
+                            </button>
+                            <button onclick="closeWarningModal()" class="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition">
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const existingModal = document.getElementById('exerciseWarningModal');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
 
     // Функция показа модального окна с предупреждением
     function showExerciseModal(id, title, imageUrl, videoUrl, description, duration_minutes, calories) {
@@ -599,6 +861,7 @@
 }
 
 // Новая функция завершения тренировки с сохранением в БД
+// Функция завершения тренировки с сохранением в БД и обновлением статуса
 async function finishWorkout() {
     // Останавливаем таймер
     if (workoutTimerInterval) {
@@ -616,12 +879,13 @@ async function finishWorkout() {
         caloriesBurned = Math.round((timerSeconds / plannedSeconds) * currentExerciseData.calories);
     }
     
-    // Данные для отправки
+    // Данные для отправки статистики
     const statsData = {
         exercise_id: currentExerciseData.id,
         duration_seconds: timerSeconds,
         planned_duration_minutes: currentExerciseData.duration_minutes,
-        calories_burned: caloriesBurned
+        calories_burned: caloriesBurned,
+        date: currentDate  // Добавляем дату
     };
     
     // Закрываем модальное окно таймера
@@ -635,8 +899,8 @@ async function finishWorkout() {
     showLoadingNotification('Сохранение результатов...');
     
     try {
-        // Отправляем статистику на сервер
-        const response = await fetch('/api/save-statistics', {
+        // 1. Отправляем статистику на сервер
+        const statsResponse = await fetch('/api/save-statistics', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -644,30 +908,49 @@ async function finishWorkout() {
             body: JSON.stringify(statsData)
         });
         
-        const result = await response.json();
+        const statsResult = await statsResponse.json();
         
-        if (result.success) {
-            // Форматируем время
-            const minutes = Math.floor(timerSeconds / 60);
-            const seconds = timerSeconds % 60;
-            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            // Показываем итоговое сообщение
-            showResultNotification(
-                'success',
-                `🎉 Отличная тренировка!\n\n` +
-                `📋 Упражнение: ${currentExerciseData.title}\n` +
-                `⏱ Время: ${timeString}\n` +
-                `🔥 Сожжено: ${caloriesBurned} ккал`
-            );
-            
-            // Обновляем страницу через 2 секунды
-            setTimeout(() => {
-                location.reload();
-            }, 2500);
-        } else {
-            throw new Error(result.error || 'Не удалось сохранить статистику');
+        if (!statsResult.success) {
+            throw new Error(statsResult.error || 'Не удалось сохранить статистику');
         }
+        
+        // 2. Обновляем статус упражнения в программе
+        const statusResponse = await fetch('/api/update-exercise-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                date: currentDate,
+                exercise_id: currentExerciseData.id,
+                status: 'completed'
+            })
+        });
+        
+        const statusResult = await statusResponse.json();
+        
+        if (!statusResult.success) {
+            console.warn('Статус не обновлен:', statusResult.error);
+        }
+        
+        // Форматируем время
+        const minutes = Math.floor(timerSeconds / 60);
+        const seconds = timerSeconds % 60;
+        const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Показываем итоговое сообщение
+        showResultNotification(
+            'success',
+            `🎉 Отличная тренировка!\n\n` +
+            `📋 Упражнение: ${currentExerciseData.title}\n` +
+            `⏱ Время: ${timeString}\n` +
+            `🔥 Сожжено: ${caloriesBurned} ккал`
+        );
+        
+        // Обновляем страницу через 2 секунды, чтобы показать обновленный статус
+        setTimeout(() => {
+            location.reload();
+        }, 2500);
         
     } catch (error) {
         console.error('Ошибка при сохранении:', error);
@@ -831,125 +1114,6 @@ function showResultNotification(type, message) {
     }
 }
 </style>
-
-<!-- Форма с подобранной программой упражнений -->   
-{% if program_dict %}
-<div id="programModal" class="fixed inset-0 z-50 flex items-center justify-center visible w-full">
-    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity opacity-100"></div>
-    <!-- Модальное окно -->
-    <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto transform transition-all scale-100 opacity-100">
-        
-        <!-- Заголовок -->
-        <div class="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 py-4 rounded-t-3xl">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-emerald-400 rounded-xl flex items-center justify-center text-white shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">Ваша программа тренировок</h2>
-                        <p class="text-xs text-slate-500">Мы подобрали для вас оптимальный план</p>
-                    </div>
-                </div>
-                <button onclick="closeProgramModal()" class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-                    ✕
-                </button>
-            </div>
-        </div>
-
-        <!-- Программа тренировок -->
-        <div class="p-6 space-y-6">
-            {% for day, exercises in program_dict.items() %}
-            <!-- День тренировки -->
-            <div class="border border-slate-200 rounded-2xl overflow-hidden">
-                <!-- Заголовок дня -->
-                <div class="bg-gradient-to-r from-indigo-500 to-emerald-500 px-5 py-3">
-                    <h3 class="text-lg font-bold text-white">{{ day }}</h3>
-                    <p class="text-xs text-white/80">{{ exercises|length }} упражнений</p>
-                </div>
-                
-                <!-- Список упражнений -->
-                <div class="p-4 space-y-3">
-                    {% for exercise in exercises %}
-                    <div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition">
-                        <!-- Картинка -->
-                        <div class="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 shadow">
-                            <img src="{{ exercise.image_url }}" 
-                                 alt="{{ exercise.title }}"
-                                 class="w-full h-full object-cover">
-                        </div>
-                        
-                        <!-- Информация -->
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <h4 class="font-semibold text-slate-800">{{ exercise.title }}</h4>
-                                <span class="px-2 py-0.5 text-xs rounded-full 
-                                    {% if exercise.category == 'cardio' %}bg-orange-100 text-orange-600
-                                    {% elif exercise.category == 'strength' %}bg-emerald-100 text-emerald-600
-                                    {% elif exercise.category == 'yoga' %}bg-purple-100 text-purple-600
-                                    {% else %}bg-blue-100 text-blue-600{% endif %}">
-                                    {% if exercise.category == 'cardio' %}Кардио
-                                    {% elif exercise.category == 'strength' %}Силовая
-                                    {% elif exercise.category == 'yoga' %}Йога
-                                    {% else %}Растяжка{% endif %}
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500 line-clamp-1">{{ exercise.description or '' }}</p>
-                            <div class="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                                <span>⏱️ {{ exercise.duration_minutes }} мин</span>
-                                <span>🔥 {{ exercise.calories }} ккал</span>
-                                <span>📊 
-                                    {% if exercise.difficulty == 'beginner' %}Начинающий
-                                    {% elif exercise.difficulty == 'intermediate' %}Средний
-                                    {% elif exercise.difficulty == 'advanced' %}Продвинутый
-                                    {% endif %}
-                                </span>
-                                <span>👤 
-                                    {% if exercise.sex == 'male' %}Мужской
-                                    {% elif exercise.sex == 'female' %}Женский
-                                    {% else %}Универсальный{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- Кнопка закрытия -->
-        <div class="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-4 rounded-b-3xl">
-            <a href="/main" class="w-full inline-block text-center py-3 bg-gradient-to-r from-indigo-600 to-emerald-500 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-emerald-600 transition">
-                Понятно, спасибо! 
-            </a>
-        </div>
-    </div>
-</div>
-
-<style>
-    .line-clamp-1 {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-</style>
-
-<script>
-    function closeProgramModal() {
-        const modal = document.getElementById('programModal');
-        if (modal) modal.remove();
-    }
-    
-    function startExercise(exerciseId) {
-        console.log('Начать упражнение:', exerciseId);
-        // Здесь будет вызов вашего таймера
-        alert('Начинаем упражнение #' + exerciseId);
-    }
-</script>
-{% endif %}
 <script>
     function toggleDetailedStats() {
     const detailedStats = document.getElementById('detailedStats');

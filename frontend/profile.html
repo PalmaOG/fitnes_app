@@ -82,7 +82,16 @@
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <a href="/api/logout" class="p-2 w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 text-white font-semibold rounded-2xl shadow-lg transition">Выйти</a>
+                {% if is_admin %}
+                <a href="/admin" class="p-2 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-800 hover:from-purple-700 hover:to-indigo-900 
+                    text-white font-semibold rounded-2xl shadow-lg transition">
+                    Админ
+                </a>
+                {% endif %}                
+                <a href="/api/logout" class="p-2 w-full py-3.5 mx-5 bg-gradient-to-r from-rose-600 to-rose-800 hover:from-rose-700 hover:to-rose-900 
+                    text-white font-semibold rounded-2xl shadow-lg shadow-indigo-200/80 transition transform hover:scale-[1.01] active:scale-[0.99]">
+                    Выйти
+                </a>
             </div>
         </div>
     </div>
@@ -118,32 +127,13 @@
                     </p>
                     <p class="text-xs text-slate-400 mt-3">Зарегистрирован: {{ user.created_at.strftime('%d.%m.%Y') if user.created_at else 'Не указано' }}</p>
                 </div>
-
-                <!-- Карточка статистики -->
-                <div class="glass-card rounded-3xl p-6 shadow-xl">
-                    <h3 class="font-semibold text-slate-800 mb-4">📊 Cтатистика за все время</h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-slate-600">Всего тренировок</span>
-                            <span class="font-bold text-indigo-600"> {{ total_workouts }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-slate-600">Всего сожжено калорий</span>
-                            <span class="font-bold text-indigo-600">{{ total_calories }} ккал</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-slate-600">Общее время тренировок</span>
-                            <span class="font-bold text-indigo-600">{{ total_minutes }} мин</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Правая колонка - Настройки профиля -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Вкладки -->
-                <div class="flex gap-4">
-                    <button onclick="showTab('info')" id="tab-info" class="px-3 py-3 rounded-xl font-semibold transition-all tab-active">
+                <div class="block gap-4 cols-3">
+                    <button onclick="showTab('info')" id="tab-info" class="px-3 text-small py-3 rounded-xl font-semibold transition-all tab-active">
                         📝 Личная информация
                     </button>
                     <button onclick="showTab('features')" id="tab-features" class="px-2 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
@@ -155,8 +145,12 @@
                     <button onclick="showTab('password')" id="tab-password" class="px-6 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
                         🔒 Сменить пароль
                     </button>
-                    <button onclick="showTab('stats')" id="tab-stats" class="px-6 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
-                        📈 Прогресс
+
+                    <button onclick="showTab('analytics')" id="tab-analytics" class="px-2 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600">
+                        📈 Аналитика
+                    </button>
+                    <button onclick="showTab('achievements')" id="tab-achievements" class="px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all bg-white text-indigo-600 whitespace-nowrap">
+                            🏆 Достижения
                     </button>
                 </div>
 
@@ -329,66 +323,145 @@
                     </div>
                 </div>
 
-                <!-- Вкладка: Прогресс -->
-                <div id="stats-tab" class="tab-content hidden">
-                    <div class="glass-card rounded-3xl p-6 shadow-xl">
-                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Мои достижения</h3>
-                        
-                        <!-- BMI калькулятор -->
-                        {% if user.height and user.weight %}
-                        {% set bmi = (user.weight / ((user.height/100) ** 2))|round(1) %}
-                        <div class="stat-card rounded-2xl p-4 mb-6">
-                            <h4 class="font-semibold text-slate-800 mb-3">Индекс массы тела (ИМТ)</h4>
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-3xl font-bold text-indigo-600">{{ bmi }}</p>
-                                    <p class="text-sm text-slate-600">
-                                        {% if bmi < 18.5 %}Недостаточный вес
-                                        {% elif bmi < 25 %}Нормальный вес
-                                        {% elif bmi < 30 %}Избыточный вес
-                                        {% else %}Ожирение
-                                        {% endif %}
-                                    </p>
+
+
+                <div id="analytics-tab" class="tab-content hidden">
+                    <div class="space-y-6">
+                        <!-- Карточка общей статистики -->
+                        <div class="glass-card rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">📈 Общая статистика</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-gradient-to-br from-indigo-50 to-emerald-50 rounded-2xl p-4 text-center">
+                                    <p class="text-2xl font-bold text-indigo-600 counter" id="totalWorkouts">{{ total_workouts }}</p>
+                                    <p class="text-xs text-slate-500 mt-1">Всего тренировок</p>
                                 </div>
-                                <div class="w-32 h-32">
-                                    <svg class="transform -rotate-90" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#e2e8f0" stroke-width="10"/>
-                                        {% set percent = ((bmi - 15) / 25 * 100)|round %}
-                                        {% if percent > 100 %}{% set percent = 100 %}{% endif %}
-                                        {% if percent < 0 %}{% set percent = 0 %}{% endif %}
-                                        <circle cx="50" cy="50" r="45" fill="none" stroke="url(#gradient)" stroke-width="10" 
-                                                stroke-dasharray="283" stroke-dashoffset="{{ 283 - (283 * percent / 100) }}"/>
-                                        <defs>
-                                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stop-color="#4f46e5"/>
-                                                <stop offset="100%" stop-color="#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                    </svg>
+                                <div class="bg-gradient-to-br from-indigo-50 to-emerald-50 rounded-2xl p-4 text-center">
+                                    <p class="text-2xl font-bold text-emerald-600 counter" id="totalCalories">{{ total_calories }}</p>
+                                    <p class="text-xs text-slate-500 mt-1">Всего калорий</p>
+                                </div>
+                                <div class="bg-gradient-to-br from-indigo-50 to-emerald-50 rounded-2xl p-4 text-center">
+                                    <p class="text-2xl font-bold text-indigo-600 counter" id="totalMinutes">{{ total_minutes }}</p>
+                                    <p class="text-xs text-slate-500 mt-1">Всего минут</p>
+                                </div>
+                                <div class="bg-gradient-to-br from-indigo-50 to-emerald-50 rounded-2xl p-4 text-center">
+                                    <p class="text-2xl font-bold text-emerald-600 counter" id="bestStreak">{{ best_streak }}</p>
+                                    <p class="text-xs text-slate-500 mt-1">Лучшая серия (дней)</p>
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
-                        
-                        <!-- Рекомендации -->
-                        <div class="bg-indigo-50 rounded-2xl p-4">
-                            <h4 class="font-semibold text-slate-800 mb-2">💡 Рекомендации</h4>
-                            <p class="text-sm text-slate-600">
-                                {% if not user.height or not user.weight %}
-                                    Заполните данные о росте и весе, чтобы получать персональные рекомендации!
-                                {% elif bmi < 18.5 %}
-                                    Рекомендуем увеличить калорийность питания и добавить силовые тренировки для набора мышечной массы.
-                                {% elif bmi < 25 %}
-                                    Отличный результат! Продолжайте поддерживать форму с помощью регулярных тренировок.
-                                {% elif bmi < 30 %}
-                                    Рекомендуем добавить кардио-тренировки и скорректировать питание для снижения веса.
-                                {% else %}
-                                    Рекомендуем проконсультироваться с врачом и начать с легких кардио-тренировок.
-                                {% endif %}
-                            </p>
+
+                        <!-- График активности за неделю -->
+                        <div class="glass-card rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">📊 Активность за неделю</h3>
+                            <div class="flex items-end justify-between gap-2 h-48">
+                                {% for i in range(7) %}
+                                <div class="flex-1 text-center group">
+                                    <div class="relative">
+                                        <div class="bg-gradient-to-t from-indigo-500 to-emerald-400 rounded-lg chart-bar transition-all hover:scale-110" 
+                                            style="height: {{ (chart_calories[i] / (chart_calories|max + 1) * 120) if chart_calories|max > 0 else 4 }}px; min-height: 4px;">
+                                        </div>
+                                        <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+                                            {{ chart_calories[i] }} ккал
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-2">{{ chart_labels[i] }}</p>
+                                    <p class="text-xs font-semibold text-indigo-600">{{ chart_minutes[i] }} мин</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Распределение по категориям -->
+                        <div class="glass-card rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">🏷️ Распределение по категориям</h3>
+                            <div class="space-y-4">
+                                {% for i in range(4) %}
+                                {% set percent = (category_counts[i] / (category_counts|sum + 1) * 100) if category_counts|sum > 0 else 0 %}
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600">{{ category_labels[i] }}</span>
+                                        <span class="font-semibold text-indigo-600">{{ category_counts[i] }} тренировок</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                        <div class="category-progress rounded-full h-2" 
+                                            style="width: {{ percent }}%; background: linear-gradient(90deg, #4f46e5, #10b981);">
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Топ упражнений -->
+                        <div class="glass-card rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">⭐ Топ-5 любимых упражнений</h3>
+                            {% if top_exercises %}
+                            <div class="space-y-3">
+                                {% for exercise in top_exercises %}
+                                <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition">
+                                    <div class="flex items-center gap-3">
+                                        <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">{{ loop.index }}</span>
+                                        <span class="font-medium text-slate-800">{{ exercise.title }}</span>
+                                    </div>
+                                    <div class="flex gap-4 text-sm">
+                                        <span class="text-slate-500">{{ exercise.count }} раз(а)</span>
+                                        <span class="text-indigo-600 font-semibold">{{ exercise.calories }} ккал</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-8">
+                                <p class="text-slate-500">Нет данных о тренировках</p>
+                                <p class="text-sm text-slate-400 mt-2">Выполните первую тренировку, чтобы увидеть статистику</p>
+                                <a href="/programs" class="inline-block mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition">
+                                    Начать тренировку
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+
+                <!-- Вкладка: Достижения -->
+                <div id="achievements-tab" class="tab-content hidden">
+                    <div class="glass-card rounded-3xl p-6 shadow-xl">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4">🏆 Достижения</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if total_workouts >= 1 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">🎯</div>
+                                    <p class="font-semibold text-slate-800 text-sm">Первая тренировка</p>
+                                    <p class="text-xs text-slate-500">Выполнить 1 тренировку</p>
+                                </div>
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if total_workouts >= 10 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">💪</div>
+                                    <p class="font-semibold text-slate-800 text-sm">Начинающий</p>
+                                    <p class="text-xs text-slate-500">Выполнить 10 тренировок</p>
+                                </div>
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if total_workouts >= 50 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">🔥</div>
+                                    <p class="font-semibold text-slate-800 text-sm">Продвинутый</p>
+                                    <p class="text-xs text-slate-500">Выполнить 50 тренировок</p>
+                                </div>
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if total_calories >= 1000 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">⚡</div>
+                                    <p class="font-semibold text-slate-800 text-sm">1000 калорий</p>
+                                    <p class="text-xs text-slate-500">Сжечь 1000+ калорий</p>
+                                </div>
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if best_streak >= 7 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">📅</div>
+                                    <p class="font-semibold text-slate-800 text-sm">Неделя силы</p>
+                                    <p class="text-xs text-slate-500">7 дней тренировок подряд</p>
+                                </div>
+                                <div class="text-center p-3 bg-amber-50 rounded-2xl {% if best_streak >= 30 %}opacity-100{% else %}opacity-40{% endif %}">
+                                    <div class="text-3xl mb-2">👑</div>
+                                    <p class="font-semibold text-slate-800 text-sm">Железный человек</p>
+                                    <p class="text-xs text-slate-500">30 дней тренировок подряд</p>
+                                </div>
+                            </div>
+                        </div>
+                </div>                
+
             </div>
         </div>
     </div>
@@ -407,11 +480,11 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                     </svg>
-                    <span class="text-xs mt-1">Тренировки</span>
+                    <span class="text-xs mt-1">Упражнения</span>
                 </a>
                 <a href="/my-training" class="flex flex-col items-center text-slate-400 hover:text-indigo-600 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h-2v6h6v-2h-4V7zm-4 10h10v-2H9v2zM5 5h4v2H5V5zm0 4h2v2H5V9zm0 4h4v2H5v-2zm0 4h2v2H5v-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span class="text-xs mt-1">Моя программа</span>
                 </a>
@@ -441,24 +514,50 @@
             </div>
         {% endif %}
     {% endwith %}
-
+<div class="h-20 md:hidden"></div>
     <script>
+        // Анимация счетчиков при открытии вкладки аналитики
+function animateCounters() {
+    const counters = document.querySelectorAll('.counter');
+    counters.forEach(counter => {
+        const target = parseInt(counter.innerText);
+        const duration = 1000;
+        const step = Math.ceil(target / (duration / 16));
+        let current = 0;
+        
+        const updateCounter = () => {
+            current += step;
+            if (current >= target) {
+                counter.innerText = target;
+                return;
+            }
+            counter.innerText = current;
+            requestAnimationFrame(updateCounter);
+        };
+        updateCounter();
+    });
+}
+
         function showTab(tab) {
             // Скрываем все вкладки
             document.getElementById('info-tab').classList.add('hidden');
             document.getElementById('password-tab').classList.add('hidden');
-            document.getElementById('stats-tab').classList.add('hidden');
             document.getElementById('features-tab').classList.add('hidden');
+            document.getElementById('analytics-tab').classList.add('hidden');
+             document.getElementById('achievements-tab').classList.add('hidden');
             
             // Сбрасываем стили кнопок
             document.getElementById('tab-info').classList.remove('tab-active');
             document.getElementById('tab-info').classList.add('bg-white', 'text-indigo-600');
             document.getElementById('tab-password').classList.remove('tab-active');
             document.getElementById('tab-password').classList.add('bg-white', 'text-indigo-600');
-            document.getElementById('tab-stats').classList.remove('tab-active');
-            document.getElementById('tab-stats').classList.add('bg-white', 'text-indigo-600');
             document.getElementById('tab-features').classList.remove('tab-active');
             document.getElementById('tab-features').classList.add('bg-white', 'text-indigo-600');
+            document.getElementById('tab-analytics').classList.remove('tab-active');
+            document.getElementById('tab-analytics').classList.add('bg-white', 'text-indigo-600');
+            document.getElementById('tab-achievements').classList.remove('tab-active');
+            document.getElementById('tab-achievements').classList.add('bg-white', 'text-indigo-600');
+
             
             // Показываем выбранную вкладку
             if (tab === 'info') {
@@ -469,14 +568,20 @@
                 document.getElementById('password-tab').classList.remove('hidden');
                 document.getElementById('tab-password').classList.add('tab-active');
                 document.getElementById('tab-password').classList.remove('bg-white', 'text-indigo-600');
-            } else if (tab === 'stats') {
-                document.getElementById('stats-tab').classList.remove('hidden');
-                document.getElementById('tab-stats').classList.add('tab-active');
-                document.getElementById('tab-stats').classList.remove('bg-white', 'text-indigo-600');
             } else if (tab === 'features') {
                 document.getElementById('features-tab').classList.remove('hidden');
                 document.getElementById('tab-features').classList.add('tab-active');
                 document.getElementById('tab-features').classList.remove('bg-white', 'text-indigo-600');
+            } else if (tab === 'analytics') {
+                document.getElementById('analytics-tab').classList.remove('hidden');
+                document.getElementById('tab-analytics').classList.add('tab-active');
+                document.getElementById('tab-analytics').classList.remove('bg-white', 'text-indigo-600');
+                // Анимируем счетчики
+                setTimeout(animateCounters, 100);
+            } else if (tab === 'achievements') {
+                document.getElementById('achievements-tab').classList.remove('hidden');
+                document.getElementById('tab-achievements').classList.add('tab-active');
+                document.getElementById('tab-achievements').classList.remove('bg-white', 'text-indigo-600');
             }
         }
         
@@ -573,5 +678,36 @@
         }, 3000);
     }
 </script>
+
+<style>
+    /* Стили для графиков */
+    .chart-bar {
+        transition: height 0.5s ease, background 0.3s ease;
+    }
+    .chart-bar:hover {
+        filter: brightness(0.9);
+        transform: scaleX(1.02);
+    }
+    
+    /* Анимация для цифр */
+    .counter {
+        transition: all 0.3s ease;
+    }
+    
+    /* Стили для кнопок аналитики */
+    .analytics-tab-btn {
+        transition: all 0.2s ease;
+    }
+    .analytics-tab-btn.active {
+        background: linear-gradient(135deg, #4f46e5, #10b981);
+        color: white;
+    }
+    
+    /* Прогресс-бары для категорий */
+    .category-progress {
+        transition: width 0.5s ease-out;
+    }
+</style>
+
 </body>
 </html>
