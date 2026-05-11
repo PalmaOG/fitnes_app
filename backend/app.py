@@ -167,9 +167,7 @@ class Statistics(db.Model):
     completed = db.Column(db.Boolean, default=True) 
 
     completed_at = db.Column(db.DateTime, default=datetime.now(UTC))
-    
-    user = db.relationship('User', backref='statistics')
-    exercise = db.relationship('Exercise', backref='statistics')
+
     
     def __repr__(self):
         return f'<Statistics {self.user_id} - {self.exercise_id}>'
@@ -179,13 +177,11 @@ class FavoriteExercise(db.Model):
     __tablename__ = 'favorite_exercises'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'))
+    exercise_id = db.Column(db.Integer, db.ForeignKey('exercises.id', ondelete='CASCADE'))
     created_at = db.Column(db.DateTime, default=datetime.now(UTC))
     
-    # Связи
-    user = db.relationship('User', backref='favorites')
-    exercise = db.relationship('Exercise', backref='favorited_by')
+
     
     __table_args__ = (db.UniqueConstraint('user_id', 'exercise_id', name='unique_user_exercise_favorite'),)
     
@@ -1087,7 +1083,12 @@ def profile():
     
     # Получаем избранные упражнения пользователя
     favorites = FavoriteExercise.query.filter_by(user_id=user.id).all()
-    favorite_exercises = [fav.exercise for fav in favorites]
+    favorite_exercises = []
+
+    for fav in favorites:
+        exercise = Exercise.query.get(fav.exercise_id)
+        if exercise:
+            favorite_exercises.append(exercise)
     
     # ========== СТАТИСТИКА ==========
     from datetime import datetime, timedelta
